@@ -1,7 +1,9 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import Image from 'next/image'
+import { useAuth } from '@/hooks/useAuth'
 
 interface TopNavigationProps {
   onSearch: (query: string) => void
@@ -15,6 +17,8 @@ interface FilterState {
 }
 
 export default function TopNavigation({ onSearch, onFilterChange }: TopNavigationProps) {
+  const router = useRouter()
+  const { user, logout } = useAuth()
   const [searchQuery, setSearchQuery] = useState('')
   const [activeFilters, setActiveFilters] = useState<Set<string>>(new Set(['nearby']))
   const [showFilters, setShowFilters] = useState(false)
@@ -55,6 +59,15 @@ export default function TopNavigation({ onSearch, onFilterChange }: TopNavigatio
     }
     
     setActiveFilters(newFilters)
+  }
+
+  const handleLogout = async () => {
+    try {
+      await logout()
+      router.push('/login')
+    } catch (error) {
+      console.error('Logout failed:', error)
+    }
   }
 
   const filters = [
@@ -129,6 +142,23 @@ export default function TopNavigation({ onSearch, onFilterChange }: TopNavigatio
             </span>
           )}
         </button>
+
+        {/* Login or Logout - FAR RIGHT */}
+        {user ? (
+          <button
+            onClick={handleLogout}
+            className="flex-shrink-0 px-4 py-2 rounded-full bg-white/20 text-white font-semibold hover:bg-white/30 active:scale-95 transition-all whitespace-nowrap"
+          >
+            Log Out
+          </button>
+        ) : (
+          <button
+            onClick={() => router.push('/login')}
+            className="flex-shrink-0 px-4 py-2 rounded-full bg-gold text-text-primary font-semibold hover:bg-[#FDB750] active:scale-95 transition-all whitespace-nowrap"
+          >
+            Sign In
+          </button>
+        )}
       </div>
 
       {/* Quick Filters */}
@@ -160,7 +190,7 @@ export default function TopNavigation({ onSearch, onFilterChange }: TopNavigatio
         })}
       </div>
 
-      {/* Filter Modal/Dropdown (optional - for future expansion) */}
+      {/* Filter Modal/Dropdown */}
       {showFilters && (
         <div className="absolute top-full left-0 right-0 bg-white shadow-lg border-t border-cream p-4 z-50">
           <div className="max-w-md mx-auto">

@@ -1,11 +1,13 @@
 import type { Metadata } from 'next'
+import { Inter } from 'next/font/google'
 import './globals.css'
+import { AuthProvider } from '@/hooks/useAuth'
+
+const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
   title: 'Lokolo - Discover Black-Owned Businesses',
-  description: 'Find and support Black-owned local businesses in Southern Africa',
-  viewport: 'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no',
-  themeColor: '#B85C1A',
+  description: 'Connect with verified Black-owned businesses in Southern Africa',
 }
 
 export default function RootLayout({
@@ -15,7 +17,11 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body className={inter.className}>
+        <AuthProvider>
+          {children}
+        </AuthProvider>
+      </body>
     </html>
   )
 }
