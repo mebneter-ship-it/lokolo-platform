@@ -6,18 +6,21 @@ interface Business {
   short_description?: string
   category?: string
   distance?: number
-  verified?: boolean
-  featured?: boolean
+  is_verified?: boolean
+  is_featured?: boolean
   logo_url?: string
+  isFavorite?: boolean
+  hours?: any
 }
 
 interface BusinessCardProps {
   business: Business
   onClick: () => void
+  onFavoriteToggle?: (businessId: string, isFavorite: boolean) => void
   isSelected?: boolean
 }
 
-export default function BusinessCard({ business, onClick, isSelected }: BusinessCardProps) {
+export default function BusinessCard({ business, onClick, onFavoriteToggle, isSelected }: BusinessCardProps) {
   // Category gradient mapping
   const getCategoryGradient = (category?: string) => {
     const cat = category?.toLowerCase() || ''
@@ -33,8 +36,8 @@ export default function BusinessCard({ business, onClick, isSelected }: Business
   // Format distance
   const formatDistance = (distance?: number) => {
     if (!distance) return ''
-    if (distance < 1000) return `${Math.round(distance)}m`
-    return `${(distance / 1000).toFixed(1)}km`
+    if (distance < 1) return `${Math.round(distance * 1000)}m`
+    return `${distance.toFixed(1)}km`
   }
 
   // Get category emoji
@@ -48,16 +51,42 @@ export default function BusinessCard({ business, onClick, isSelected }: Business
     return '🏪'
   }
 
+  const handleFavoriteClick = (e: React.MouseEvent) => {
+    e.stopPropagation() // Prevent card click
+    if (onFavoriteToggle) {
+      onFavoriteToggle(business.id, !business.isFavorite)
+    }
+  }
+
+  // FOR TESTING: Show all businesses as open
+  // Remove this later when you have real hours data
+  const isOpen = true
+
   return (
     <div
       onClick={onClick}
       className={`
-        bg-white rounded-xl p-4 mb-3 shadow-sm transition-all cursor-pointer
+        bg-white rounded-xl p-4 mb-3 shadow-sm transition-all cursor-pointer relative
         ${isSelected ? 'border-2 border-gold' : 'border-2 border-cream'}
         hover:border-gold hover:-translate-y-0.5 active:scale-99
       `}
       style={{ minHeight: '120px' }}
     >
+      {/* Favorite Heart Button */}
+      {onFavoriteToggle && (
+        <button
+          onClick={handleFavoriteClick}
+          className="absolute top-3 right-3 w-10 h-10 rounded-full bg-white shadow-md flex items-center justify-center hover:scale-110 active:scale-95 transition-all z-10"
+          aria-label={business.isFavorite ? 'Remove from favorites' : 'Add to favorites'}
+        >
+          {business.isFavorite ? (
+            <span className="text-2xl">❤️</span>
+          ) : (
+            <span className="text-2xl text-text-secondary">🤍</span>
+          )}
+        </button>
+      )}
+
       <div className="flex gap-4">
         {/* Business Image/Logo */}
         <div
@@ -78,7 +107,7 @@ export default function BusinessCard({ business, onClick, isSelected }: Business
         </div>
 
         {/* Business Info */}
-        <div className="flex-1 min-w-0">
+        <div className="flex-1 min-w-0 pr-12">
           {/* Name and Badge Row */}
           <div className="flex items-start justify-between gap-2 mb-1">
             <h3 className="text-base font-bold text-text-primary truncate">
@@ -86,14 +115,19 @@ export default function BusinessCard({ business, onClick, isSelected }: Business
             </h3>
             
             {/* Badges */}
-            <div className="flex-shrink-0">
-              {business.verified && (
-                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold bg-teal text-white">
+            <div className="flex-shrink-0 flex gap-1 flex-wrap">
+              {/* TEST: Always show Open badge */}
+              <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold bg-green-500 text-white whitespace-nowrap">
+                • Open
+              </span>
+              
+              {business.is_verified && (
+                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold bg-teal text-white whitespace-nowrap">
                   ✓ Verified
                 </span>
               )}
-              {business.featured && (
-                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold bg-gold text-text-primary">
+              {business.is_featured && (
+                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold bg-gold text-text-primary whitespace-nowrap">
                   ★ Featured
                 </span>
               )}
@@ -108,15 +142,12 @@ export default function BusinessCard({ business, onClick, isSelected }: Business
           )}
 
           {/* Meta Info */}
-          <div className="flex items-center gap-3 text-xs text-text-secondary">
+          <div className="flex items-center gap-3 text-xs text-text-secondary flex-wrap">
             {business.distance && (
               <span className="flex items-center gap-1">
                 📍 {formatDistance(business.distance)}
               </span>
             )}
-            <span className="flex items-center gap-1">
-              ⭐ 4.8
-            </span>
             {business.category && (
               <span className="flex items-center gap-1">
                 {getCategoryEmoji(business.category)} {business.category}

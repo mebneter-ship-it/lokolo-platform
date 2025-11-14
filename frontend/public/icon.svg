@@ -1,0 +1,14 @@
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <!-- Orange background -->
+  <rect width="512" height="512" fill="#B85C1A"/>
+  
+  <!-- Gold map pin -->
+  <g transform="translate(256, 200)">
+    <!-- Pin body -->
+    <path d="M0,-120 C-66,-120 -120,-66 -120,0 C-120,90 0,160 0,160 C0,160 120,90 120,0 C120,-66 66,-120 0,-120 Z" 
+          fill="#F5A623"/>
+    
+    <!-- Teal center circle -->
+    <circle cx="0" cy="0" r="48" fill="#156B60"/>
+  </g>
+</svg>
