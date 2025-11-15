@@ -22,8 +22,33 @@ export default function LoginPage() {
 
     try {
       await login(email, password)
-      // Redirect to home after successful login
-      router.push('/')
+      
+      // Get user role from backend
+      const auth = (await import('@/lib/firebase')).auth
+      const token = await auth.currentUser?.getIdToken()
+      
+      if (token) {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/me`, {
+          headers: { 'Authorization': `Bearer ${token}` },
+        })
+        
+        if (response.ok) {
+          const userData = await response.json()
+          const userRole = userData.data?.role || 'consumer'
+          
+          // Redirect based on role
+          if (userRole === 'supplier') {
+            router.push('/supplier/dashboard')
+          } else {
+            router.push('/')
+          }
+        } else {
+          // Fallback to home if API call fails
+          router.push('/')
+        }
+      } else {
+        router.push('/')
+      }
     } catch (err: any) {
       console.error('Login failed:', err)
       

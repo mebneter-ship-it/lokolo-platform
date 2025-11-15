@@ -16,6 +16,7 @@ export default function SignupPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
+  const [role, setRole] = useState('consumer') // Add role selection
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
@@ -42,7 +43,7 @@ export default function SignupPage() {
     setLoading(true)
 
     try {
-      // Sign up the user
+      // Sign up the user in Firebase
       await signup(email, password)
       
       // Update user profile with display name
@@ -51,10 +52,32 @@ export default function SignupPage() {
         await updateProfile(auth.currentUser, {
           displayName: `${firstName.trim()} ${lastName.trim()}`
         })
+        
+        // Send role to backend
+        const token = await auth.currentUser.getIdToken()
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/me`, {
+          method: 'PATCH',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            display_name: `${firstName.trim()} ${lastName.trim()}`,
+            role: role,
+          }),
+        })
+        
+        if (!response.ok) {
+          console.error('Failed to update user role')
+        }
       }
       
-      // Redirect to home after successful signup
-      router.push('/')
+      // Redirect based on role
+      if (role === 'supplier') {
+        router.push('/supplier/dashboard')
+      } else {
+        router.push('/')
+      }
     } catch (err: any) {
       console.error('Signup failed:', err)
       
@@ -97,7 +120,7 @@ export default function SignupPage() {
               Join Lokolo
             </h1>
             <p className="text-text-secondary">
-              Discover and support Black-owned businesses in Southern Africa
+              Discover businesses or register your own
             </p>
           </div>
 
@@ -112,6 +135,46 @@ export default function SignupPage() {
                   </p>
                 </div>
               )}
+
+              {/* Role Selection */}
+              <div>
+                <label className="block text-sm font-semibold text-text-primary mb-3">
+                  I am a... <span className="text-orange">*</span>
+                </label>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setRole('consumer')}
+                    className={`p-4 rounded-xl border-2 transition-all ${
+                      role === 'consumer'
+                        ? 'border-gold bg-gold/10'
+                        : 'border-cream bg-white hover:border-gold/50'
+                    }`}
+                  >
+                    <div className="text-3xl mb-2">🛍️</div>
+                    <div className="font-bold text-text-primary">Consumer</div>
+                    <div className="text-xs text-text-secondary mt-1">
+                      Discover businesses
+                    </div>
+                  </button>
+                  
+                  <button
+                    type="button"
+                    onClick={() => setRole('supplier')}
+                    className={`p-4 rounded-xl border-2 transition-all ${
+                      role === 'supplier'
+                        ? 'border-gold bg-gold/10'
+                        : 'border-cream bg-white hover:border-gold/50'
+                    }`}
+                  >
+                    <div className="text-3xl mb-2">🏪</div>
+                    <div className="font-bold text-text-primary">Business Owner</div>
+                    <div className="text-xs text-text-secondary mt-1">
+                      Register my business
+                    </div>
+                  </button>
+                </div>
+              </div>
 
               {/* Name Fields - Side by Side */}
               <div className="grid grid-cols-2 gap-3">
