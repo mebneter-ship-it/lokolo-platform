@@ -8,6 +8,8 @@ import { useAuth } from '@/hooks/useAuth'
 interface TopNavigationProps {
   onSearch: (query: string) => void
   onFilterChange: (filters: FilterState) => void
+  onRadiusChange: (radius: number) => void
+  currentRadius: number
 }
 
 interface FilterState {
@@ -16,7 +18,7 @@ interface FilterState {
   featured_only?: boolean
 }
 
-export default function TopNavigation({ onSearch, onFilterChange }: TopNavigationProps) {
+export default function TopNavigation({ onSearch, onFilterChange, onRadiusChange, currentRadius }: TopNavigationProps) {
   const router = useRouter()
   const { user, logout } = useAuth()
   const [searchQuery, setSearchQuery] = useState('')
@@ -75,6 +77,14 @@ export default function TopNavigation({ onSearch, onFilterChange }: TopNavigatio
     { id: 'verified', label: 'Verified' },
     { id: 'open', label: 'Open Now' },
     { id: 'featured', label: 'Featured' },
+  ]
+
+  const radiusOptions = [
+    { value: 5, label: '5 km' },
+    { value: 10, label: '10 km' },
+    { value: 25, label: '25 km' },
+    { value: 50, label: '50 km' },
+    { value: 100, label: '100 km' },
   ]
 
   return (
@@ -161,8 +171,9 @@ export default function TopNavigation({ onSearch, onFilterChange }: TopNavigatio
         )}
       </div>
 
-      {/* Quick Filters */}
+      {/* Quick Filters + Radius Selector */}
       <div className="flex gap-2 px-4 pb-3 overflow-x-auto no-scrollbar">
+        {/* Filter Buttons */}
         {filters.map((filter) => {
           const isActive = activeFilters.has(filter.id)
           return (
@@ -188,6 +199,20 @@ export default function TopNavigation({ onSearch, onFilterChange }: TopNavigatio
             </button>
           )
         })}
+
+        {/* Radius Selector - After filters */}
+        <select
+          value={currentRadius}
+          onChange={(e) => onRadiusChange(Number(e.target.value))}
+          className="flex-shrink-0 px-3 py-2 rounded-full text-sm font-semibold bg-gold text-text-primary shadow-md cursor-pointer focus:outline-none focus:ring-2 focus:ring-white"
+          style={{ fontSize: '14px' }}
+        >
+          {radiusOptions.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
       </div>
 
       {/* Filter Modal/Dropdown */}

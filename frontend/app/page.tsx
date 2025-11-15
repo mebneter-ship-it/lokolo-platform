@@ -24,6 +24,7 @@ export default function Home() {
   const [searchQuery, setSearchQuery] = useState('')
   const [filters, setFilters] = useState<FilterState>({})
   const [favorites, setFavorites] = useState<Set<string>>(new Set())
+  const [radius, setRadius] = useState(10) // Default 10km
 
   // Load favorites from backend when user logs in
   useEffect(() => {
@@ -83,17 +84,53 @@ export default function Home() {
     loadFavorites()
   }, [user])
 
-  // Get user location on mount
+  // Get user location on mount - FORCE JOHANNESBURG FOR TESTING
   useEffect(() => {
+    // TESTING: Force Johannesburg since all test businesses are in South Africa
+    console.log('Using Johannesburg for testing (businesses are in SA)')
     setUserLocation({ lat: -26.2041, lng: 28.0473 })
+    
+    /* 
+    // PRODUCTION: Uncomment this to use real GPS
+    const getUserLocation = () => {
+      if ('geolocation' in navigator) {
+        console.log('Requesting user location...')
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            const location = {
+              lat: position.coords.latitude,
+              lng: position.coords.longitude
+            }
+            setUserLocation(location)
+            console.log('Got user location:', location)
+          },
+          (error) => {
+            console.error('Location error:', error.message)
+            // Fallback to Johannesburg if permission denied or error
+            console.log('Using Johannesburg as fallback')
+            setUserLocation({ lat: -26.2041, lng: 28.0473 })
+          },
+          {
+            enableHighAccuracy: false,
+            timeout: 10000,
+            maximumAge: 300000 // Cache for 5 minutes
+          }
+        )
+      } else {
+        console.log('Geolocation not supported, using Johannesburg')
+        setUserLocation({ lat: -26.2041, lng: 28.0473 })
+      }
+    }
+    getUserLocation()
+    */
   }, [])
 
-  // Fetch businesses when location, search, or filters change
+  // Fetch businesses when location, search, filters, or radius change
   useEffect(() => {
     if (userLocation) {
       fetchBusinesses()
     }
-  }, [userLocation, searchQuery, filters, favorites])
+  }, [userLocation, searchQuery, filters, favorites, radius])
 
   const fetchBusinesses = async () => {
     if (!userLocation) return
@@ -104,7 +141,7 @@ export default function Home() {
       const searchParams: any = {
         latitude: userLocation.lat,
         longitude: userLocation.lng,
-        radius: 10,
+        radius: radius, // Use user-selected radius
         limit: 20,
       }
 
@@ -140,6 +177,11 @@ export default function Home() {
 
   const handleFilterChange = useCallback((newFilters: FilterState) => {
     setFilters(newFilters)
+  }, [])
+
+  const handleRadiusChange = useCallback((newRadius: number) => {
+    console.log('Radius changed to:', newRadius, 'km')
+    setRadius(newRadius)
   }, [])
 
   const handleFavoriteToggle = useCallback(async (businessId: string, isFavorite: boolean) => {
@@ -221,6 +263,8 @@ export default function Home() {
       <TopNavigation 
         onSearch={handleSearch}
         onFilterChange={handleFilterChange}
+        onRadiusChange={handleRadiusChange}
+        currentRadius={radius}
       />
 
       <div className="relative" style={{ height: 'calc(100vh - 160px)' }}>
