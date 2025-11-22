@@ -6,6 +6,7 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { useAuth } from '@/hooks/useAuth'
 import { updateProfile } from 'firebase/auth'
+import { ShoppingIcon, BusinessIcon } from '@/components/icons/LokoloIcons'
 
 export default function SignupPage() {
   const router = useRouter()
@@ -16,7 +17,7 @@ export default function SignupPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
-  const [role, setRole] = useState('consumer') // Add role selection
+  const [role, setRole] = useState('consumer')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
@@ -136,7 +137,7 @@ export default function SignupPage() {
                 </div>
               )}
 
-              {/* Role Selection */}
+              {/* Role Selection - FIXED with brand icons */}
               <div>
                 <label className="block text-sm font-semibold text-text-primary mb-3">
                   I am a... <span className="text-orange">*</span>
@@ -151,7 +152,9 @@ export default function SignupPage() {
                         : 'border-cream bg-white hover:border-gold/50'
                     }`}
                   >
-                    <div className="text-3xl mb-2">🛍️</div>
+                    <div className="flex justify-center mb-2">
+                      <ShoppingIcon size={40} />
+                    </div>
                     <div className="font-bold text-text-primary">Consumer</div>
                     <div className="text-xs text-text-secondary mt-1">
                       Discover businesses
@@ -167,7 +170,9 @@ export default function SignupPage() {
                         : 'border-cream bg-white hover:border-gold/50'
                     }`}
                   >
-                    <div className="text-3xl mb-2">🏪</div>
+                    <div className="flex justify-center mb-2">
+                      <BusinessIcon size={40} />
+                    </div>
                     <div className="font-bold text-text-primary">Business Owner</div>
                     <div className="text-xs text-text-secondary mt-1">
                       Register my business

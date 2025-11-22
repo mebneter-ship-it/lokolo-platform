@@ -27,15 +27,17 @@ router.get('/', async (req: AuthenticatedRequest, res) => {
 /**
  * PATCH /api/v1/me
  * Update current user profile
+ * FIXED: Now accepts role parameter for signup flow
  */
 router.patch('/', async (req: AuthenticatedRequest, res) => {
   try {
-    const { display_name, phone_number, profile_photo_url } = req.body;
+    const { display_name, phone_number, profile_photo_url, role } = req.body;
     
     const updatedUser = await userService.updateUser(req.user!.id, {
       display_name,
       phone_number,
       profile_photo_url,
+      role, // ADDED: Allow updating role during signup
     });
     
     sendSuccess(res, updatedUser);

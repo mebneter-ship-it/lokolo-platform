@@ -1,68 +1,33 @@
 import React, { useRef, useState } from 'react'
+import { CameraIcon, CloseIcon } from '@/components/icons/LokoloIcons'
 
 interface Step4Props {
-  formData: any
-  onChange: (field: string, value: any) => void
+  formData: {
+    photos: File[]
+  }
+  updateFormData: (data: Partial<Step4Props['formData']>) => void
 }
 
-export default function Step4Photos({ formData, onChange }: Step4Props) {
+export default function Step4Photos({ formData, updateFormData }: Step4Props) {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [previews, setPreviews] = useState<string[]>([])
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || [])
-    
-    // Limit to 3 photos total
-    const currentPhotos = formData.photos || []
-    const availableSlots = 3 - currentPhotos.length
-    const filesToAdd = files.slice(0, availableSlots)
+    const newPhotos = [...formData.photos, ...files].slice(0, 3)
+    updateFormData({ photos: newPhotos })
 
-    if (filesToAdd.length === 0) {
-      alert('Maximum 3 photos allowed')
-      return
-    }
-
-    // Validate file types and sizes
-    const validFiles = filesToAdd.filter(file => {
-      const isImage = file.type.startsWith('image/')
-      const isUnder5MB = file.size <= 5 * 1024 * 1024
-
-      if (!isImage) {
-        alert(`${file.name} is not an image file`)
-        return false
-      }
-      if (!isUnder5MB) {
-        alert(`${file.name} is larger than 5MB`)
-        return false
-      }
-      return true
-    })
-
-    if (validFiles.length === 0) return
-
-    // Update formData with new photos
-    const updatedPhotos = [...currentPhotos, ...validFiles]
-    onChange('photos', updatedPhotos)
-
-    // Generate previews
-    validFiles.forEach(file => {
-      const reader = new FileReader()
-      reader.onloadend = () => {
-        setPreviews(prev => [...prev, reader.result as string])
-      }
-      reader.readAsDataURL(file)
-    })
-
-    // Reset input
-    if (fileInputRef.current) {
-      fileInputRef.current.value = ''
-    }
+    // Create previews
+    const newPreviews = newPhotos.map(file => URL.createObjectURL(file))
+    setPreviews(newPreviews)
   }
 
   const removePhoto = (index: number) => {
-    const updatedPhotos = formData.photos.filter((_: any, i: number) => i !== index)
-    onChange('photos', updatedPhotos)
-    setPreviews(prev => prev.filter((_, i) => i !== index))
+    const newPhotos = formData.photos.filter((_, i) => i !== index)
+    updateFormData({ photos: newPhotos })
+
+    const newPreviews = previews.filter((_, i) => i !== index)
+    setPreviews(newPreviews)
   }
 
   const handleBrowseClick = () => {
@@ -71,49 +36,15 @@ export default function Step4Photos({ formData, onChange }: Step4Props) {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-bold text-text-primary mb-2">Show off your business</h2>
-        <p className="text-text-secondary">Upload up to 3 photos (max 5MB each)</p>
+      {/* Header */}
+      <div className="text-center">
+        <h2 className="text-2xl font-bold text-text-primary mb-2">Business Photos</h2>
+        <p className="text-text-secondary">
+          Add up to 3 photos of your business (optional)
+        </p>
       </div>
 
-      {/* Photo Grid */}
-      <div className="grid grid-cols-3 gap-4">
-        {/* Existing Photos */}
-        {previews.map((preview, index) => (
-          <div key={index} className="relative aspect-square rounded-xl overflow-hidden bg-cream border-2 border-gold">
-            <img
-              src={preview}
-              alt={`Photo ${index + 1}`}
-              className="w-full h-full object-cover"
-            />
-            <button
-              type="button"
-              onClick={() => removePhoto(index)}
-              className="absolute top-2 right-2 w-8 h-8 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600 transition-colors shadow-lg"
-            >
-              ✕
-            </button>
-            <div className="absolute bottom-2 left-2 bg-black/50 text-white text-xs px-2 py-1 rounded">
-              Photo {index + 1}
-            </div>
-          </div>
-        ))}
-
-        {/* Empty Slots */}
-        {Array.from({ length: 3 - previews.length }).map((_, index) => (
-          <button
-            key={`empty-${index}`}
-            type="button"
-            onClick={handleBrowseClick}
-            className="aspect-square rounded-xl border-2 border-dashed border-cream hover:border-gold bg-cream/50 hover:bg-cream transition-all flex flex-col items-center justify-center gap-2"
-          >
-            <span className="text-4xl text-text-secondary">📸</span>
-            <span className="text-xs text-text-secondary font-semibold">Add Photo</span>
-          </button>
-        ))}
-      </div>
-
-      {/* Hidden File Input */}
+      {/* Hidden file input */}
       <input
         ref={fileInputRef}
         type="file"
@@ -123,6 +54,40 @@ export default function Step4Photos({ formData, onChange }: Step4Props) {
         className="hidden"
       />
 
+      {/* Photo Grid */}
+      <div className="grid grid-cols-3 gap-4">
+        {/* Filled Slots */}
+        {previews.map((preview, index) => (
+          <div key={index} className="relative aspect-square rounded-xl overflow-hidden border-2 border-teal shadow-lg">
+            <img
+              src={preview}
+              alt={`Preview ${index + 1}`}
+              className="w-full h-full object-cover"
+            />
+            <button
+              type="button"
+              onClick={() => removePhoto(index)}
+              className="absolute top-2 right-2 w-8 h-8 bg-orange text-white rounded-full flex items-center justify-center hover:bg-orange/80 transition-colors shadow-lg"
+            >
+              <CloseIcon size={16} className="text-white" />
+            </button>
+          </div>
+        ))}
+
+        {/* Empty Slots */}
+        {Array.from({ length: 3 - previews.length }).map((_, index) => (
+          <button
+            key={`empty-${index}`}
+            type="button"
+            onClick={handleBrowseClick}
+            className="aspect-square rounded-xl border-2 border-dashed border-gold hover:border-orange bg-cream/50 hover:bg-cream transition-all flex flex-col items-center justify-center gap-2 shadow-sm"
+          >
+            <CameraIcon size={40} className="text-gold" />
+            <span className="text-xs text-text-primary font-semibold">Add Photo</span>
+          </button>
+        ))}
+      </div>
+
       {/* Upload Button */}
       {previews.length < 3 && (
         <button
@@ -130,19 +95,19 @@ export default function Step4Photos({ formData, onChange }: Step4Props) {
           onClick={handleBrowseClick}
           className="w-full py-4 bg-gold text-text-primary font-bold rounded-xl shadow-md hover:bg-light-gold active:scale-98 transition-all"
         >
-          📷 Browse Photos ({previews.length}/3)
+          <span className="inline-flex items-center gap-2">
+            <CameraIcon size={20} />
+            <span>Browse Photos ({previews.length}/3)</span>
+          </span>
         </button>
       )}
 
-      {/* Tips */}
-      <div className="bg-cream rounded-xl p-4">
-        <h3 className="font-bold text-text-primary mb-2">📸 Photo Tips:</h3>
-        <ul className="text-sm text-text-secondary space-y-1 list-disc list-inside">
-          <li>Use high-quality, well-lit photos</li>
-          <li>Show your products, services, or storefront</li>
-          <li>Photos must be under 5MB each</li>
-          <li>First photo will be your main display image</li>
-        </ul>
+      {/* Info Text */}
+      <div className="bg-cream rounded-xl p-4 border border-gold/20">
+        <p className="text-sm text-text-secondary text-center">
+          💡 <strong>Tip:</strong> Add clear photos of your storefront, interior, or products. 
+          Great photos help customers find and trust your business!
+        </p>
       </div>
     </div>
   )

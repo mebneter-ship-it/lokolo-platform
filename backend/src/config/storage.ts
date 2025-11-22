@@ -1,4 +1,5 @@
 import { Storage } from '@google-cloud/storage';
+import path from 'path';
 
 let storage: Storage | null = null;
 
@@ -8,11 +9,28 @@ export const initializeStorage = (): Storage => {
   }
 
   try {
-    storage = new Storage({
-      projectId: process.env.GCP_PROJECT_ID,
-    });
+    // Use service account key file if provided
+    const keyFilePath = process.env.FIREBASE_SERVICE_ACCOUNT_KEY_PATH;
+    
+    if (keyFilePath) {
+      // Resolve relative path from backend root
+      const resolvedPath = path.resolve(process.cwd(), keyFilePath);
+      
+      storage = new Storage({
+        projectId: process.env.FIREBASE_PROJECT_ID || 'lokolo-platform',
+        keyFilename: resolvedPath,
+      });
+      
+      console.log('✅ Cloud Storage initialized with service account key');
+    } else {
+      // Fallback to default credentials (for Cloud Run deployment)
+      storage = new Storage({
+        projectId: process.env.FIREBASE_PROJECT_ID || 'lokolo-platform',
+      });
+      
+      console.log('✅ Cloud Storage initialized with default credentials');
+    }
 
-    console.log('✅ Cloud Storage initialized successfully');
     return storage;
   } catch (error) {
     console.error('❌ Failed to initialize Cloud Storage:', error);
@@ -28,9 +46,6 @@ export const getStorage = (): Storage => {
 };
 
 export const getBucket = () => {
-  const bucketName = process.env.STORAGE_BUCKET;
-  if (!bucketName) {
-    throw new Error('STORAGE_BUCKET environment variable is not set');
-  }
+  const bucketName = process.env.GCS_BUCKET_NAME || 'lokolo-platform-media';
   return getStorage().bucket(bucketName);
 };

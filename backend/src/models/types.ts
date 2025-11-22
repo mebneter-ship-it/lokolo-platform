@@ -37,6 +37,11 @@ export interface Business {
   phone_number?: string;
   whatsapp_number?: string;
   website_url?: string;
+  facebook_url?: string;     // ADDED for social media
+  instagram_url?: string;    // ADDED for social media
+  twitter_url?: string;      // ADDED for social media
+  linkedin_url?: string;     // ADDED for social media
+  tiktok_url?: string;       // ADDED for social media
   location: string; // PostGIS GEOGRAPHY type (stored as GeoJSON string in queries)
   address_line1?: string;
   address_line2?: string;

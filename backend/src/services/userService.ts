@@ -42,11 +42,13 @@ export const createUser = async (data: {
 
 /**
  * Update user profile
+ * FIXED: Now accepts role parameter for signup flow
  */
 export const updateUser = async (userId: string, data: {
   display_name?: string;
   phone_number?: string;
   profile_photo_url?: string;
+  role?: UserRole;  // ADDED: Allow updating role during signup
 }): Promise<User> => {
   const pool = getPool();
   const updates: string[] = [];
@@ -64,6 +66,10 @@ export const updateUser = async (userId: string, data: {
   if (data.profile_photo_url !== undefined) {
     updates.push(`profile_photo_url = $${paramIndex++}`);
     values.push(data.profile_photo_url);
+  }
+  if (data.role !== undefined) {  // ADDED: Handle role updates
+    updates.push(`role = $${paramIndex++}`);
+    values.push(data.role);
   }
 
   values.push(userId);
