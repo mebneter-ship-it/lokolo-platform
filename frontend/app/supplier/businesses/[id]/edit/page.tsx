@@ -72,6 +72,8 @@ export default function EditBusinessPage() {
 
         // Debug: Log the location field to see its format
         console.log('📍 Location data:', business.location)
+        console.log('📍 Latitude:', business.latitude)
+        console.log('📍 Longitude:', business.longitude)
 
         // Fetch category from business_categories table
         let category = ''
@@ -119,24 +121,9 @@ export default function EditBusinessPage() {
           console.log('No hours found')
         }
 
-        // Extract lat/lng from location if available
-        let lat = 0
-        let lng = 0
-        if (business.location) {
-          // Location is a PostGIS geography - might come as WKT or coordinates
-          if (typeof business.location === 'string') {
-            // Parse POINT(lng lat) format
-            const match = business.location.match(/POINT\(([^ ]+) ([^)]+)\)/)
-            if (match) {
-              lng = parseFloat(match[1])
-              lat = parseFloat(match[2])
-            }
-          } else if (business.location.coordinates) {
-            // GeoJSON format
-            lng = business.location.coordinates[0]
-            lat = business.location.coordinates[1]
-          }
-        }
+        // Use lat/lng directly from backend (now extracted via PostGIS ST_Y/ST_X)
+        const lat = business.latitude || 0
+        const lng = business.longitude || 0
 
         setFormData({
           name: business.name || '',

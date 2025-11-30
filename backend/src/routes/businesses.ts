@@ -156,4 +156,69 @@ router.get('/:id/media', async (req: AuthenticatedRequest, res) => {
   }
 });
 
+/**
+ * GET /api/v1/businesses/:id/categories
+ * Get business categories
+ */
+router.get('/:id/categories', async (req: AuthenticatedRequest, res) => {
+  try {
+    const { id } = req.params;
+    
+    const business = await businessService.getBusinessById(id);
+    if (!business) {
+      sendError(res, 'Business not found', 404);
+      return;
+    }
+    
+    const pool = require('../config/database').getPool();
+    const result = await pool.query(
+      'SELECT id, category_name, created_at FROM business_categories WHERE business_id = $1',
+      [id]
+    );
+    
+    sendSuccess(res, result.rows);
+  } catch (error) {
+    console.error('Get categories error:', error);
+    sendError(res, 'Failed to fetch categories', 500);
+  }
+});
+
+/**
+ * GET /api/v1/businesses/:id/hours
+ * Get business hours
+ */
+router.get('/:id/hours', async (req: AuthenticatedRequest, res) => {
+  try {
+    const { id } = req.params;
+    
+    const business = await businessService.getBusinessById(id);
+    if (!business) {
+      sendError(res, 'Business not found', 404);
+      return;
+    }
+    
+    const pool = require('../config/database').getPool();
+    const result = await pool.query(
+      `SELECT id, day_of_week, opens_at, closes_at, is_closed 
+       FROM business_hours 
+       WHERE business_id = $1 
+       ORDER BY CASE day_of_week 
+         WHEN 'monday' THEN 1 
+         WHEN 'tuesday' THEN 2 
+         WHEN 'wednesday' THEN 3 
+         WHEN 'thursday' THEN 4 
+         WHEN 'friday' THEN 5 
+         WHEN 'saturday' THEN 6 
+         WHEN 'sunday' THEN 7 
+       END`,
+      [id]
+    );
+    
+    sendSuccess(res, result.rows);
+  } catch (error) {
+    console.error('Get hours error:', error);
+    sendError(res, 'Failed to fetch business hours', 500);
+  }
+});
+
 export default router;

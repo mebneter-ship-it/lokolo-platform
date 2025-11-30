@@ -83,7 +83,9 @@ export const getBusinessById = async (id: string): Promise<Business | null> => {
     `SELECT 
       id, owner_id, name, tagline, description, email, phone_number, whatsapp_number,
       website_url, facebook_url, instagram_url, twitter_url, linkedin_url, tiktok_url,
-      location,
+      ST_AsText(location) as location,
+      ST_Y(location::geometry) as latitude,
+      ST_X(location::geometry) as longitude,
       address_line1, address_line2, city, province_state, postal_code, country,
       year_established, employee_count_range, status, verification_status,
       verified_at, created_at, updated_at, published_at, metadata
