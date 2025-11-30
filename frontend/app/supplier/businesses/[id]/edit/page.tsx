@@ -54,6 +54,37 @@ export default function EditBusinessPage() {
   const [photos, setPhotos] = useState<any[]>([])
   const [uploadingLogo, setUploadingLogo] = useState(false)
   const [uploadingPhoto, setUploadingPhoto] = useState(false)
+  const [capturingGPS, setCapturingGPS] = useState(false)
+  const [gpsError, setGpsError] = useState('')
+
+  // GPS Capture function
+  const captureGPS = () => {
+    setCapturingGPS(true)
+    setGpsError('')
+
+    if ('geolocation' in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          handleChange('latitude', position.coords.latitude)
+          handleChange('longitude', position.coords.longitude)
+          setCapturingGPS(false)
+          console.log('✅ GPS captured:', position.coords.latitude, position.coords.longitude)
+        },
+        (error) => {
+          setCapturingGPS(false)
+          setGpsError('Failed to get location. Please enable location services.')
+          console.error('GPS error:', error)
+        },
+        {
+          enableHighAccuracy: true,
+          timeout: 10000,
+        }
+      )
+    } else {
+      setCapturingGPS(false)
+      setGpsError('Geolocation is not supported by your browser')
+    }
+  }
 
   // Load business data
   useEffect(() => {
@@ -351,6 +382,13 @@ export default function EditBusinessPage() {
               >
                 <ArrowLeftIcon size={24} className="text-white" />
               </button>
+              <Image
+                src="/images/lokolo-logo.png"
+                alt="Lokolo"
+                width={50}
+                height={50}
+                className="rounded-lg"
+              />
               <div>
                 <h1 className="text-xl font-bold text-white">Edit Business</h1>
                 <p className="text-sm text-white/90">{formData.name}</p>
@@ -611,11 +649,121 @@ export default function EditBusinessPage() {
               />
             </div>
           </div>
+
+          {/* Social Media Section */}
+          <div className="mt-6 pt-6 border-t-2 border-cream">
+            <h3 className="text-md font-semibold text-text-primary mb-4">Social Media</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-semibold text-text-primary mb-2">
+                  📘 Facebook
+                </label>
+                <input
+                  type="url"
+                  value={formData.facebook_url}
+                  onChange={(e) => handleChange('facebook_url', e.target.value)}
+                  placeholder="https://facebook.com/..."
+                  className="w-full px-4 py-3 rounded-xl border-2 border-cream focus:border-gold focus:outline-none"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-text-primary mb-2">
+                  📸 Instagram
+                </label>
+                <input
+                  type="url"
+                  value={formData.instagram_url}
+                  onChange={(e) => handleChange('instagram_url', e.target.value)}
+                  placeholder="https://instagram.com/..."
+                  className="w-full px-4 py-3 rounded-xl border-2 border-cream focus:border-gold focus:outline-none"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-text-primary mb-2">
+                  🐦 Twitter / X
+                </label>
+                <input
+                  type="url"
+                  value={formData.twitter_url}
+                  onChange={(e) => handleChange('twitter_url', e.target.value)}
+                  placeholder="https://twitter.com/..."
+                  className="w-full px-4 py-3 rounded-xl border-2 border-cream focus:border-gold focus:outline-none"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-text-primary mb-2">
+                  💼 LinkedIn
+                </label>
+                <input
+                  type="url"
+                  value={formData.linkedin_url}
+                  onChange={(e) => handleChange('linkedin_url', e.target.value)}
+                  placeholder="https://linkedin.com/company/..."
+                  className="w-full px-4 py-3 rounded-xl border-2 border-cream focus:border-gold focus:outline-none"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-text-primary mb-2">
+                  🎵 TikTok
+                </label>
+                <input
+                  type="url"
+                  value={formData.tiktok_url}
+                  onChange={(e) => handleChange('tiktok_url', e.target.value)}
+                  placeholder="https://tiktok.com/@..."
+                  className="w-full px-4 py-3 rounded-xl border-2 border-cream focus:border-gold focus:outline-none"
+                />
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* Location */}
         <div className="bg-white rounded-2xl shadow-md p-6 mb-6">
           <h2 className="text-lg font-bold text-text-primary mb-4">Location</h2>
+          
+          {/* GPS Capture */}
+          <div className="bg-cream rounded-xl p-4 mb-6">
+            <div className="flex items-start gap-4">
+              <div className="flex-1">
+                <h3 className="font-bold text-text-primary mb-2">📍 GPS Location</h3>
+                {formData.latitude && formData.longitude ? (
+                  <div className="space-y-1">
+                    <p className="text-sm text-teal font-semibold">✓ Location set</p>
+                    <p className="text-xs text-text-secondary">
+                      Lat: {typeof formData.latitude === 'number' ? formData.latitude.toFixed(6) : formData.latitude}, 
+                      Lng: {typeof formData.longitude === 'number' ? formData.longitude.toFixed(6) : formData.longitude}
+                    </p>
+                  </div>
+                ) : (
+                  <p className="text-sm text-text-secondary">
+                    No GPS location set
+                  </p>
+                )}
+                {gpsError && (
+                  <p className="text-sm text-red-600 mt-2">{gpsError}</p>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={captureGPS}
+                disabled={capturingGPS}
+                className="px-4 py-2 bg-gold text-text-primary font-bold rounded-xl shadow-md hover:bg-light-gold active:scale-98 transition-all disabled:opacity-50"
+              >
+                {capturingGPS ? (
+                  <span className="flex items-center gap-2">
+                    <div className="w-4 h-4 border-2 border-text-primary border-t-transparent rounded-full animate-spin"></div>
+                    Capturing...
+                  </span>
+                ) : formData.latitude ? (
+                  'Update Location'
+                ) : (
+                  'Capture Location'
+                )}
+              </button>
+            </div>
+          </div>
+
           <div className="space-y-4">
             <div>
               <label className="block text-sm font-semibold text-text-primary mb-2">
@@ -697,7 +845,7 @@ export default function EditBusinessPage() {
                   step="0.0000001"
                   value={formData.latitude}
                   onChange={(e) => handleChange('latitude', parseFloat(e.target.value))}
-                  className="w-full px-4 py-3 rounded-xl border-2 border-cream focus:border-gold focus:outline-none"
+                  className="w-full px-4 py-3 rounded-xl border-2 border-cream focus:border-gold focus:outline-none bg-cream/50"
                 />
               </div>
               <div>
@@ -709,7 +857,7 @@ export default function EditBusinessPage() {
                   step="0.0000001"
                   value={formData.longitude}
                   onChange={(e) => handleChange('longitude', parseFloat(e.target.value))}
-                  className="w-full px-4 py-3 rounded-xl border-2 border-cream focus:border-gold focus:outline-none"
+                  className="w-full px-4 py-3 rounded-xl border-2 border-cream focus:border-gold focus:outline-none bg-cream/50"
                 />
               </div>
             </div>

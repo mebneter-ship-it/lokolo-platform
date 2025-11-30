@@ -163,8 +163,8 @@ export default function SupplierRegisterPage() {
       {/* Header with orange-gold gradient matching consumer page */}
       <header className="bg-gradient-to-r from-orange to-gold shadow-md sticky top-0 z-10">
         <div className="max-w-4xl mx-auto">
-          <div className="flex items-center justify-center px-4 py-3">
-            {/* Logo and Title - Centered */}
+          <div className="flex items-center justify-between px-4 py-3">
+            {/* Logo and Title - Left aligned */}
             <div className="flex items-center gap-3">
               <Image
                 src="/images/lokolo-logo.png"
@@ -184,15 +184,15 @@ export default function SupplierRegisterPage() {
 
       {/* Progress Bar with brand-colored icons */}
       <div className="bg-white border-b border-cream">
-        <div className="max-w-4xl mx-auto px-4 py-6 overflow-x-auto">
-          <div className="flex items-center justify-center gap-2">
+        <div className="max-w-4xl mx-auto px-8 py-6">
+          <div className="flex items-center justify-between">
             {STEPS.map((step, index) => {
               const StepIcon = step.Icon;
               return (
-                <div key={step.id} className="flex items-center">
-                  <div className="flex flex-col items-center min-w-[100px]">
+                <div key={step.id} className="flex items-center flex-1">
+                  <div className="flex flex-col items-center flex-1">
                     <div
-                      className={`w-14 h-14 rounded-full flex items-center justify-center transition-all mb-2 ${
+                      className={`w-12 h-12 rounded-full flex items-center justify-center transition-all mb-2 ${
                         currentStep > step.id
                           ? 'bg-teal text-white'  // Completed: teal
                           : currentStep === step.id
@@ -201,12 +201,12 @@ export default function SupplierRegisterPage() {
                       }`}
                     >
                       {currentStep > step.id ? (
-                        <CheckIcon size={28} className="text-white" />
+                        <CheckIcon size={24} className="text-white" />
                       ) : (
-                        <StepIcon size={28} className={currentStep === step.id ? 'text-text-primary' : 'text-text-secondary'} />
+                        <StepIcon size={24} className={currentStep === step.id ? 'text-text-primary' : 'text-text-secondary'} />
                       )}
                     </div>
-                    <span className={`text-xs text-center font-medium ${
+                    <span className={`text-xs text-center font-medium whitespace-nowrap ${
                       currentStep >= step.id ? 'text-text-primary' : 'text-text-secondary'
                     }`}>
                       {step.title}
@@ -214,7 +214,7 @@ export default function SupplierRegisterPage() {
                   </div>
                   {index < STEPS.length - 1 && (
                     <div
-                      className={`w-16 h-1 mx-1 transition-all ${
+                      className={`h-1 flex-1 mx-2 transition-all ${
                         currentStep > step.id ? 'bg-teal' : 'bg-cream'
                       }`}
                     />
