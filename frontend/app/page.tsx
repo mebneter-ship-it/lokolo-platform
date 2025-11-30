@@ -84,14 +84,8 @@ export default function Home() {
     loadFavorites()
   }, [user])
 
-  // Get user location on mount - FORCE JOHANNESBURG FOR TESTING
+  // Get user's REAL location on mount
   useEffect(() => {
-    // TESTING: Force Johannesburg since all test businesses are in South Africa
-    console.log('Using Johannesburg for testing (businesses are in SA)')
-    setUserLocation({ lat: -26.2041, lng: 28.0473 })
-    
-    /* 
-    // PRODUCTION: Uncomment this to use real GPS
     const getUserLocation = () => {
       if ('geolocation' in navigator) {
         console.log('Requesting user location...')
@@ -106,9 +100,9 @@ export default function Home() {
           },
           (error) => {
             console.error('Location error:', error.message)
-            // Fallback to Johannesburg if permission denied or error
-            console.log('Using Johannesburg as fallback')
-            setUserLocation({ lat: -26.2041, lng: 28.0473 })
+            // Fallback to Switzerland (Emmen, Lucerne) if permission denied or error
+            console.log('Using Switzerland as fallback')
+            setUserLocation({ lat: 47.0784, lng: 8.2847 })
           },
           {
             enableHighAccuracy: false,
@@ -117,12 +111,11 @@ export default function Home() {
           }
         )
       } else {
-        console.log('Geolocation not supported, using Johannesburg')
-        setUserLocation({ lat: -26.2041, lng: 28.0473 })
+        console.log('Geolocation not supported, using Switzerland')
+        setUserLocation({ lat: 47.0784, lng: 8.2847 })
       }
     }
     getUserLocation()
-    */
   }, [])
 
   // Fetch businesses when location, search, filters, or radius change
