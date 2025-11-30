@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import { useAuth } from '@/hooks/useAuth'
-import { BusinessIcon, EditIcon, TrashIcon, ImageIcon, LogoutIcon } from '@/components/icons/LokoloIcons'
+import { BusinessIcon, EditIcon, TrashIcon, ImageIcon } from '@/components/icons/LokoloIcons'
 
 export default function SupplierDashboard() {
   const router = useRouter()
@@ -94,10 +94,9 @@ export default function SupplierDashboard() {
             </div>
             <button
               onClick={handleLogout}
-              className="flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/20 text-white font-semibold rounded-xl transition-colors"
+              className="px-4 py-2 rounded-full bg-white/20 text-white font-semibold hover:bg-white/30 active:scale-95 transition-all"
             >
-              <LogoutIcon size={20} />
-              Logout
+              Log Out
             </button>
           </div>
         </div>
