@@ -41,13 +41,27 @@ router.use(requireRole('supplier', 'admin'));
 
 /**
  * GET /api/v1/supplier/businesses
- * Get supplier's businesses
+ * Get supplier's businesses with logo URLs
  */
 router.get('/businesses', async (req: AuthenticatedRequest, res) => {
   try {
     const businesses = await userService.getUserBusinesses(req.user!.id);
-    sendSuccess(res, { businesses });
+    
+    // Fetch logo URLs for all businesses
+    const businessesWithLogos = await Promise.all(
+      businesses.map(async (business: any) => {
+        const media = await mediaService.getBusinessMedia(business.id);
+        const logo = media.find((m: any) => m.media_type === 'logo');
+        return {
+          ...business,
+          logo_url: logo ? await mediaService.generateDownloadUrl(logo.storage_path) : null,
+        };
+      })
+    );
+    
+    sendSuccess(res, { businesses: businessesWithLogos });
   } catch (error) {
+    console.error('Error fetching businesses:', error);
     sendError(res, 'Failed to fetch businesses', 500);
   }
 });
@@ -666,31 +680,96 @@ router.get('/businesses/:id', requireBusinessOwner, async (req: AuthenticatedReq
 
 /**
  * PATCH /api/v1/supplier/businesses/:id
- * Update business details
+ * Update business details including hours and category
  */
 router.patch('/businesses/:id', requireBusinessOwner, async (req: AuthenticatedRequest, res) => {
   try {
     const { id } = req.params;
-    const updateData = req.body;
+    const { business_hours, category, ...businessFields } = req.body;
     
     // Validate fields if provided
-    if (updateData.name && !isValidBusinessName(updateData.name)) {
+    if (businessFields.name && !isValidBusinessName(businessFields.name)) {
       sendError(res, 'Invalid business name', 400);
       return;
     }
     
-    if (updateData.email && !isValidEmail(updateData.email)) {
+    if (businessFields.email && !isValidEmail(businessFields.email)) {
       sendError(res, 'Invalid email format', 400);
       return;
     }
     
-    if (updateData.latitude && updateData.longitude && 
-        !isValidCoordinates(updateData.latitude, updateData.longitude)) {
+    if (businessFields.latitude && businessFields.longitude && 
+        !isValidCoordinates(businessFields.latitude, businessFields.longitude)) {
       sendError(res, 'Invalid coordinates', 400);
       return;
     }
     
-    const updatedBusiness = await businessService.updateBusiness(id, updateData);
+    const pool = getPool();
+    
+    // Update business fields
+    const updatedBusiness = await businessService.updateBusiness(id, businessFields);
+    
+    // Update business hours if provided
+    if (business_hours) {
+      console.log('📅 Updating business hours for', id);
+      const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+      
+      for (const day of days) {
+        if (business_hours[day]) {
+          const hours = business_hours[day];
+          
+          // Check if hours exist for this day
+          const existing = await pool.query(
+            'SELECT id FROM business_hours WHERE business_id = $1 AND day_of_week = $2',
+            [id, day]
+          );
+          
+          if (existing.rows.length > 0) {
+            // Update existing
+            await pool.query(
+              `UPDATE business_hours 
+               SET opens_at = $1, closes_at = $2, is_closed = $3, updated_at = NOW()
+               WHERE business_id = $4 AND day_of_week = $5`,
+              [
+                hours.closed ? null : hours.open,
+                hours.closed ? null : hours.close,
+                hours.closed || false,
+                id,
+                day
+              ]
+            );
+          } else {
+            // Insert new
+            await pool.query(
+              `INSERT INTO business_hours (business_id, day_of_week, opens_at, closes_at, is_closed)
+               VALUES ($1, $2, $3, $4, $5)`,
+              [
+                id,
+                day,
+                hours.closed ? null : hours.open,
+                hours.closed ? null : hours.close,
+                hours.closed || false
+              ]
+            );
+          }
+        }
+      }
+      console.log('✅ Business hours updated');
+    }
+    
+    // Update category if provided
+    if (category) {
+      console.log('🏷️ Updating category for', id, ':', category);
+      
+      // Delete existing categories and insert new one
+      await pool.query('DELETE FROM business_categories WHERE business_id = $1', [id]);
+      await pool.query(
+        'INSERT INTO business_categories (business_id, category_name) VALUES ($1, $2)',
+        [id, category]
+      );
+      console.log('✅ Category updated');
+    }
+    
     sendSuccess(res, updatedBusiness, 'Business updated successfully');
   } catch (error) {
     console.error('Update business error:', error);

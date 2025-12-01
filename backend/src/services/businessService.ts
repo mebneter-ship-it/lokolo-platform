@@ -307,3 +307,8 @@ export const getBusinessWithDetails = async (id: string): Promise<any> => {
     business_hours: hoursResult.rows,
   };
 };
+// ADD THIS METHOD TO backend/src/services/businessService.ts
+
+/**
+ * Update business
+ */

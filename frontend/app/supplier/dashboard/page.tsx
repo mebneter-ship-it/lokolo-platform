@@ -4,11 +4,11 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import { useAuth } from '@/hooks/useAuth'
-import { BusinessIcon, EditIcon, TrashIcon, ImageIcon } from '@/components/icons/LokoloIcons'
+import { BusinessIcon, EditIcon, TrashIcon, ImageIcon, ProfileIcon } from '@/components/icons/LokoloIcons'
 
 export default function SupplierDashboard() {
   const router = useRouter()
-  const { user, logout } = useAuth()
+  const { user } = useAuth()
   const [businesses, setBusinesses] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -60,11 +60,6 @@ export default function SupplierDashboard() {
     }
   }
 
-  const handleLogout = async () => {
-    await logout()
-    router.push('/login')
-  }
-
   if (loading) {
     return (
       <div className="min-h-screen bg-cream flex items-center justify-center">
@@ -93,10 +88,11 @@ export default function SupplierDashboard() {
               </div>
             </div>
             <button
-              onClick={handleLogout}
-              className="px-4 py-2 rounded-full bg-white/20 text-white font-semibold hover:bg-white/30 active:scale-95 transition-all"
+              onClick={() => router.push('/profile')}
+              className="w-10 h-10 rounded-full bg-gold flex items-center justify-center hover:bg-[#E69515] active:scale-95 transition-all"
+              aria-label="Profile"
             >
-              Log Out
+              <ProfileIcon size={24} />
             </button>
           </div>
         </div>

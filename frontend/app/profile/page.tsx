@@ -1,12 +1,43 @@
 'use client'
 
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/hooks/useAuth'
-import { HeartIcon, LocationIcon } from '@/components/icons/LokoloIcons'
+import { HeartIcon, LocationIcon, BusinessIcon } from '@/components/icons/LokoloIcons'
 
 export default function ProfilePage() {
   const router = useRouter()
   const { user, logout, loading } = useAuth()
+  const [userRole, setUserRole] = useState<string | null>(null)
+  const [roleLoading, setRoleLoading] = useState(true)
+
+  // Fetch user role from API
+  useEffect(() => {
+    const fetchUserRole = async () => {
+      if (!user) return
+      
+      try {
+        const token = await user.getIdToken()
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/me`, {
+          headers: { 'Authorization': `Bearer ${token}` },
+        })
+        
+        if (response.ok) {
+          const data = await response.json()
+          setUserRole(data.data?.role || 'consumer')
+        }
+      } catch (error) {
+        console.error('Failed to fetch user role:', error)
+        setUserRole('consumer') // Default fallback
+      } finally {
+        setRoleLoading(false)
+      }
+    }
+
+    if (user) {
+      fetchUserRole()
+    }
+  }, [user])
 
   // Redirect to login if not authenticated
   if (!loading && !user) {
@@ -14,7 +45,7 @@ export default function ProfilePage() {
     return null
   }
 
-  if (loading) {
+  if (loading || roleLoading) {
     return (
       <div className="min-h-screen bg-cream flex items-center justify-center">
         <div className="text-center">
@@ -33,6 +64,8 @@ export default function ProfilePage() {
       console.error('Logout failed:', error)
     }
   }
+
+  const isSupplier = userRole === 'supplier'
 
   return (
     <div className="min-h-screen bg-cream">
@@ -80,7 +113,7 @@ export default function ProfilePage() {
             
             <div>
               <label className="text-sm font-semibold text-text-secondary">Account Type</label>
-              <p className="text-text-primary">Consumer</p>
+              <p className="text-text-primary capitalize">{userRole || 'Consumer'}</p>
             </div>
             
             <div>
@@ -94,29 +127,61 @@ export default function ProfilePage() {
           </div>
         </div>
 
-        {/* Quick Actions */}
+        {/* Quick Actions - Different for Consumer vs Supplier */}
         <div className="space-y-3">
-          <button
-            onClick={() => router.push('/favorites')}
-            className="w-full p-4 bg-white rounded-xl shadow-sm text-left flex items-center justify-between hover:bg-cream transition-colors"
-          >
-            <div className="flex items-center gap-3">
-              <HeartIcon size={28} filled />
-              <span className="font-semibold text-text-primary">My Favorites</span>
-            </div>
-            <span className="text-text-secondary">→</span>
-          </button>
+          {isSupplier ? (
+            <>
+              {/* Supplier Actions */}
+              <button
+                onClick={() => router.push('/supplier/dashboard')}
+                className="w-full p-4 bg-white rounded-xl shadow-sm text-left flex items-center justify-between hover:bg-cream transition-colors"
+              >
+                <div className="flex items-center gap-3">
+                  <BusinessIcon size={28} />
+                  <span className="font-semibold text-text-primary">My Businesses</span>
+                </div>
+                <span className="text-text-secondary">→</span>
+              </button>
 
-          <button
-            onClick={() => router.push('/')}
-            className="w-full p-4 bg-white rounded-xl shadow-sm text-left flex items-center justify-between hover:bg-cream transition-colors"
-          >
-            <div className="flex items-center gap-3">
-              <LocationIcon size={28} />
-              <span className="font-semibold text-text-primary">Discover Businesses</span>
-            </div>
-            <span className="text-text-secondary">→</span>
-          </button>
+              <button
+                onClick={() => router.push('/supplier/register')}
+                className="w-full p-4 bg-white rounded-xl shadow-sm text-left flex items-center justify-between hover:bg-cream transition-colors"
+              >
+                <div className="flex items-center gap-3">
+                  <svg className="w-7 h-7 text-teal" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                  </svg>
+                  <span className="font-semibold text-text-primary">Register New Business</span>
+                </div>
+                <span className="text-text-secondary">→</span>
+              </button>
+            </>
+          ) : (
+            <>
+              {/* Consumer Actions */}
+              <button
+                onClick={() => router.push('/favorites')}
+                className="w-full p-4 bg-white rounded-xl shadow-sm text-left flex items-center justify-between hover:bg-cream transition-colors"
+              >
+                <div className="flex items-center gap-3">
+                  <HeartIcon size={28} filled />
+                  <span className="font-semibold text-text-primary">My Favorites</span>
+                </div>
+                <span className="text-text-secondary">→</span>
+              </button>
+
+              <button
+                onClick={() => router.push('/')}
+                className="w-full p-4 bg-white rounded-xl shadow-sm text-left flex items-center justify-between hover:bg-cream transition-colors"
+              >
+                <div className="flex items-center gap-3">
+                  <LocationIcon size={28} />
+                  <span className="font-semibold text-text-primary">Discover Businesses</span>
+                </div>
+                <span className="text-text-secondary">→</span>
+              </button>
+            </>
+          )}
         </div>
 
         {/* Logout Button */}

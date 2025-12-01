@@ -48,10 +48,32 @@ router.get('/search', optionalAuth, async (req: AuthenticatedRequest, res) => {
     
     const businesses = await businessService.searchBusinesses(filters);
     
+    // Fetch logo URLs for all businesses
+    const businessesWithLogos = await Promise.all(
+      businesses.map(async (business: BusinessWithDistance) => {
+        try {
+          const media = await mediaService.getBusinessMedia(business.id);
+          const logo = media.find((m: any) => m.media_type === 'logo');
+          const logoUrl = logo ? await mediaService.generateDownloadUrl(logo.storage_path) : null;
+          console.log(`📷 Business ${business.name}: logo found=${!!logo}, url=${logoUrl ? 'yes' : 'no'}`);
+          return {
+            ...business,
+            logo_url: logoUrl,
+          };
+        } catch (error) {
+          console.error(`❌ Error fetching logo for ${business.name}:`, error);
+          return {
+            ...business,
+            logo_url: null,
+          };
+        }
+      })
+    );
+    
     // If user is authenticated, check which businesses are favorited
     if (req.user) {
       const businessesWithFavorites = await Promise.all(
-        businesses.map(async (business: BusinessWithDistance) => ({
+        businessesWithLogos.map(async (business) => ({
           ...business,
           is_favorited: await favoriteService.isFavorited(req.user!.id, business.id),
         }))
@@ -66,7 +88,7 @@ router.get('/search', optionalAuth, async (req: AuthenticatedRequest, res) => {
       });
     } else {
       sendSuccess(res, {
-        businesses,
+        businesses: businessesWithLogos,
         pagination: {
           page: validPage,
           limit: validLimit,
@@ -76,6 +98,82 @@ router.get('/search', optionalAuth, async (req: AuthenticatedRequest, res) => {
   } catch (error) {
     console.error('Search error:', error);
     sendError(res, 'Failed to search businesses', 500);
+  }
+});
+
+/**
+ * GET /api/v1/businesses/nearby
+ * Get businesses near a location
+ */
+router.get('/nearby', optionalAuth, async (req: AuthenticatedRequest, res) => {
+  try {
+    const { lat, lng, radius, limit, page } = req.query;
+    
+    const latitude = parseFloat(lat as string);
+    const longitude = parseFloat(lng as string);
+    
+    if (!isValidCoordinates(latitude, longitude)) {
+      sendError(res, 'Invalid coordinates. Please provide valid lat and lng parameters.', 400);
+      return;
+    }
+    
+    const radiusKm = radius ? parseFloat(radius as string) / 1000 : 10; // Convert meters to km, default 10km
+    const validRadius = validateSearchRadius(radiusKm);
+    const { page: validPage, limit: validLimit } = validatePagination(
+      Number(page) || 1,
+      Number(limit) || 20
+    );
+    
+    const filters = {
+      latitude,
+      longitude,
+      radius_km: validRadius,
+      page: validPage,
+      limit: validLimit,
+    };
+    
+    const businesses = await businessService.searchBusinesses(filters);
+    
+    // Fetch logo URLs for all businesses
+    const businessesWithLogos = await Promise.all(
+      businesses.map(async (business: BusinessWithDistance) => {
+        const media = await mediaService.getBusinessMedia(business.id);
+        const logo = media.find((m: any) => m.media_type === 'logo');
+        return {
+          ...business,
+          logo_url: logo ? await mediaService.generateDownloadUrl(logo.storage_path) : null,
+        };
+      })
+    );
+    
+    // If user is authenticated, check which businesses are favorited
+    if (req.user) {
+      const businessesWithFavorites = await Promise.all(
+        businessesWithLogos.map(async (business) => ({
+          ...business,
+          is_favorited: await favoriteService.isFavorited(req.user!.id, business.id),
+        }))
+      );
+      
+      sendSuccess(res, {
+        businesses: businessesWithFavorites,
+        pagination: {
+          page: validPage,
+          limit: validLimit,
+        },
+      });
+    } else {
+      sendSuccess(res, {
+        businesses: businessesWithLogos,
+        pagination: {
+          page: validPage,
+          limit: validLimit,
+        },
+      });
+    }
+  } catch (error) {
+    console.error('Nearby search error:', error);
+    sendError(res, 'Failed to fetch nearby businesses', 500);
   }
 });
 
@@ -104,6 +202,17 @@ router.get('/:id', optionalAuth, async (req: AuthenticatedRequest, res) => {
     // Get media
     const media = await mediaService.getBusinessMedia(id);
     
+    // Generate URLs for media and extract logo
+    const mediaWithUrls = await Promise.all(
+      media.map(async (item: any) => ({
+        ...item,
+        url: await mediaService.generateDownloadUrl(item.storage_path),
+      }))
+    );
+    
+    const logo = mediaWithUrls.find((m: any) => m.media_type === 'logo');
+    const photos = mediaWithUrls.filter((m: any) => m.media_type === 'photo');
+    
     // Check if favorited (if authenticated)
     let isFavorited = false;
     if (req.user) {
@@ -113,9 +222,37 @@ router.get('/:id', optionalAuth, async (req: AuthenticatedRequest, res) => {
     // Get favorite count
     const favoriteCount = await favoriteService.getBusinessFavoriteCount(id);
     
+    // Get business hours
+    const pool = require('../config/database').getPool();
+    const hoursResult = await pool.query(
+      `SELECT day_of_week, opens_at, closes_at, is_closed 
+       FROM business_hours 
+       WHERE business_id = $1 
+       ORDER BY CASE day_of_week 
+         WHEN 'monday' THEN 1 
+         WHEN 'tuesday' THEN 2 
+         WHEN 'wednesday' THEN 3 
+         WHEN 'thursday' THEN 4 
+         WHEN 'friday' THEN 5 
+         WHEN 'saturday' THEN 6 
+         WHEN 'sunday' THEN 7 
+       END`,
+      [id]
+    );
+    
+    // Get categories
+    const categoriesResult = await pool.query(
+      'SELECT category_name FROM business_categories WHERE business_id = $1',
+      [id]
+    );
+    
     sendSuccess(res, {
       ...business,
-      media,
+      logo_url: logo?.url || null,
+      photos: photos,
+      media: mediaWithUrls,
+      business_hours: hoursResult.rows,
+      categories: categoriesResult.rows.map((r: any) => r.category_name),
       is_favorited: isFavorited,
       favorite_count: favoriteCount,
     });
