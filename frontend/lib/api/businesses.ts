@@ -84,6 +84,11 @@ class ApiService {
     const result = await response.json();
     
     if (result.success && result.data) {
+      console.log('🔍 Raw backend response:', result.data.businesses?.length, 'businesses')
+      result.data.businesses?.forEach((b: any, i: number) => {
+        console.log(`  RAW ${i}: ${b.name} - lat: ${b.latitude}, lng: ${b.longitude}`)
+      })
+      
       const transformedBusinesses = result.data.businesses.map((b: any) => 
         this.transformBusiness(b)
       );

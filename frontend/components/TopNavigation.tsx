@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import { useAuth } from '@/hooks/useAuth'
+import { ProfileIcon } from '@/components/icons/LokoloIcons'
 
 interface TopNavigationProps {
   onSearch: (query: string) => void
@@ -20,7 +21,7 @@ interface FilterState {
 
 export default function TopNavigation({ onSearch, onFilterChange, onRadiusChange, currentRadius }: TopNavigationProps) {
   const router = useRouter()
-  const { user, logout } = useAuth()
+  const { user } = useAuth()
   const [searchQuery, setSearchQuery] = useState('')
   const [activeFilters, setActiveFilters] = useState<Set<string>>(new Set(['nearby']))
   const [showFilters, setShowFilters] = useState(false)
@@ -61,15 +62,6 @@ export default function TopNavigation({ onSearch, onFilterChange, onRadiusChange
     }
     
     setActiveFilters(newFilters)
-  }
-
-  const handleLogout = async () => {
-    try {
-      await logout()
-      router.push('/login')
-    } catch (error) {
-      console.error('Logout failed:', error)
-    }
   }
 
   const filters = [
@@ -153,13 +145,14 @@ export default function TopNavigation({ onSearch, onFilterChange, onRadiusChange
           )}
         </button>
 
-        {/* Login or Logout - FAR RIGHT */}
+        {/* Profile or Sign In - FAR RIGHT */}
         {user ? (
           <button
-            onClick={handleLogout}
-            className="flex-shrink-0 px-4 py-2 rounded-full bg-white/20 text-white font-semibold hover:bg-white/30 active:scale-95 transition-all whitespace-nowrap"
+            onClick={() => router.push('/profile')}
+            className="flex-shrink-0 w-10 h-10 rounded-full bg-gold flex items-center justify-center hover:bg-[#FDB750] active:scale-95 transition-all"
+            aria-label="Profile"
           >
-            Log Out
+            <ProfileIcon size={24} />
           </button>
         ) : (
           <button

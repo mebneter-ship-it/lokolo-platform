@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/hooks/useAuth'
 import BusinessCard from '@/components/BusinessCard'
+import { HeartIcon } from '@/components/icons/LokoloIcons'
 
 export default function FavoritesPage() {
   const router = useRouter()
@@ -88,11 +89,11 @@ export default function FavoritesPage() {
   return (
     <div className="min-h-screen bg-cream">
       {/* Header */}
-      <header className="sticky top-0 z-50 bg-white shadow-md">
+      <header className="sticky top-0 z-50 bg-gradient-to-r from-orange to-gold shadow-md">
         <div className="flex items-center gap-4 px-4 py-4">
           <button
             onClick={() => router.back()}
-            className="flex items-center justify-center w-10 h-10 rounded-full bg-cream text-text-primary hover:bg-gold transition-colors"
+            className="flex items-center justify-center w-10 h-10 rounded-full bg-white/20 text-white hover:bg-white/30 transition-colors"
             aria-label="Go back"
           >
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -100,7 +101,7 @@ export default function FavoritesPage() {
             </svg>
           </button>
           
-          <h1 className="text-2xl font-bold text-text-primary">My Favorites</h1>
+          <h1 className="text-2xl font-bold text-white">My Favorites</h1>
         </div>
       </header>
 
@@ -118,7 +119,9 @@ export default function FavoritesPage() {
         {!loading && favorites.length === 0 && (
           <div className="flex flex-col items-center justify-center py-20">
             <div className="text-center mb-8">
-              <div className="text-6xl mb-4">💛</div>
+              <div className="mb-4">
+                <HeartIcon size={64} filled />
+              </div>
               <h2 className="text-2xl font-bold text-text-primary mb-2">
                 No favorites yet
               </h2>

@@ -2,6 +2,7 @@
 
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/hooks/useAuth'
+import { HeartIcon, LocationIcon } from '@/components/icons/LokoloIcons'
 
 export default function ProfilePage() {
   const router = useRouter()
@@ -36,18 +37,18 @@ export default function ProfilePage() {
   return (
     <div className="min-h-screen bg-cream">
       {/* Header */}
-      <header className="sticky top-0 z-50 bg-white shadow-md">
+      <header className="sticky top-0 z-50 bg-gradient-to-r from-orange to-gold shadow-md">
         <div className="flex items-center gap-4 px-4 py-4">
           <button
             onClick={() => router.back()}
-            className="flex items-center justify-center w-10 h-10 rounded-full bg-cream text-text-primary hover:bg-gold transition-colors"
+            className="flex items-center justify-center w-10 h-10 rounded-full bg-white/20 text-white hover:bg-white/30 transition-colors"
           >
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
             </svg>
           </button>
           
-          <h1 className="text-2xl font-bold text-text-primary">Profile</h1>
+          <h1 className="text-2xl font-bold text-white">Profile</h1>
         </div>
       </header>
 
@@ -100,7 +101,7 @@ export default function ProfilePage() {
             className="w-full p-4 bg-white rounded-xl shadow-sm text-left flex items-center justify-between hover:bg-cream transition-colors"
           >
             <div className="flex items-center gap-3">
-              <span className="text-2xl">❤️</span>
+              <HeartIcon size={28} filled />
               <span className="font-semibold text-text-primary">My Favorites</span>
             </div>
             <span className="text-text-secondary">→</span>
@@ -111,7 +112,7 @@ export default function ProfilePage() {
             className="w-full p-4 bg-white rounded-xl shadow-sm text-left flex items-center justify-between hover:bg-cream transition-colors"
           >
             <div className="flex items-center gap-3">
-              <span className="text-2xl">🏪</span>
+              <LocationIcon size={28} />
               <span className="font-semibold text-text-primary">Discover Businesses</span>
             </div>
             <span className="text-text-secondary">→</span>
@@ -121,7 +122,7 @@ export default function ProfilePage() {
         {/* Logout Button */}
         <button
           onClick={handleLogout}
-          className="w-full mt-6 py-4 bg-red-500 text-white font-bold rounded-xl shadow-md hover:bg-red-600 active:scale-98 transition-all"
+          className="w-full mt-6 py-4 bg-orange text-white font-bold rounded-xl shadow-md hover:bg-orange/90 active:scale-98 transition-all"
         >
           Sign Out
         </button>

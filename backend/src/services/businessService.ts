@@ -226,6 +226,8 @@ export const searchBusinesses = async (filters: BusinessSearchFilters): Promise<
       id, owner_id, name, tagline, description, email, phone_number, whatsapp_number,
       website_url, facebook_url, instagram_url, twitter_url, linkedin_url, tiktok_url,
       location,
+      ST_Y(location::geometry) as latitude,
+      ST_X(location::geometry) as longitude,
       ${filters.latitude && filters.longitude ? `ST_Distance(location, ST_GeographyFromText('POINT(${filters.longitude} ${filters.latitude})')) / 1000 as distance_km,` : ''}
       address_line1, address_line2, city, province_state, postal_code, country,
       year_established, employee_count_range, status, verification_status,
@@ -253,6 +255,8 @@ export const getBusinessesByOwner = async (ownerId: string): Promise<Business[]>
       id, owner_id, name, tagline, description, email, phone_number, whatsapp_number,
       website_url, facebook_url, instagram_url, twitter_url, linkedin_url, tiktok_url,
       location,
+      ST_Y(location::geometry) as latitude,
+      ST_X(location::geometry) as longitude,
       address_line1, address_line2, city, province_state, postal_code, country,
       year_established, employee_count_range, status, verification_status,
       verified_at, created_at, updated_at, published_at, metadata
@@ -303,8 +307,3 @@ export const getBusinessWithDetails = async (id: string): Promise<any> => {
     business_hours: hoursResult.rows,
   };
 };
-// ADD THIS METHOD TO backend/src/services/businessService.ts
-
-/**
- * Update business
- */

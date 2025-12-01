@@ -101,15 +101,26 @@ export default function MapView({
     markersRef.current.clear()
 
     // Add new markers
-    businesses.forEach((business) => {
+    console.log('🗺️ MapView received businesses:', businesses.length)
+    businesses.forEach((business, index) => {
+      console.log(`📍 Business ${index}: ${business.name}`, {
+        lat: business.latitude,
+        lng: business.longitude,
+        hasCoords: !!(business.latitude && business.longitude)
+      })
       if (!business.latitude || !business.longitude) return
 
-      // Create custom pin icon (gold with teal center)
+      // Create custom pin icon (gold with teal center) - using data URL for reliability
+      const pinSvg = `<svg width="32" height="40" viewBox="0 0 32 40" xmlns="http://www.w3.org/2000/svg">
+        <path d="M16 0C9.4 0 4 5.4 4 12c0 9 12 28 12 28s12-19 12-28c0-6.6-5.4-12-12-12z" fill="#F5A623" stroke="#FFFFFF" stroke-width="1.5"/>
+        <circle cx="16" cy="12" r="6" fill="#156B60"/>
+      </svg>`;
+      
       const pinIcon = {
-  url: '/images/lokolo-pin.svg',
-  scaledSize: new google.maps.Size(32, 40),
-  anchor: new google.maps.Point(16, 40),
-}
+        url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(pinSvg),
+        scaledSize: new google.maps.Size(32, 40),
+        anchor: new google.maps.Point(16, 40),
+      }
 
       const marker = new google.maps.Marker({
         position: { lat: business.latitude, lng: business.longitude },

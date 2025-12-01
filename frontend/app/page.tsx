@@ -145,6 +145,11 @@ export default function Home() {
 
       const response = await apiService.searchBusinesses(searchParams)
       
+      console.log('📦 API Response - businesses:', response.businesses.length)
+      response.businesses.forEach((b: any, i: number) => {
+        console.log(`  ${i}: ${b.name} - lat: ${b.latitude}, lng: ${b.longitude}`)
+      })
+      
       let filteredBusinesses = response.businesses
       if (filters.featured_only) {
         filteredBusinesses = filteredBusinesses.filter((b: any) => b.is_featured)
