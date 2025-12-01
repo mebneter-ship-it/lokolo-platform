@@ -11,6 +11,8 @@ interface Business {
   logo_url?: string
   isFavorite?: boolean
   tagline?: string
+  rating?: number
+  total_ratings?: number
 }
 
 interface BusinessCardProps {
@@ -144,7 +146,10 @@ export default function BusinessCard({ business, onClick, onFavoriteToggle, isSe
               </span>
             )}
             <span className="flex items-center gap-1">
-              ⭐ 4.8
+              ⭐ {business.rating && business.rating > 0 ? business.rating.toFixed(1) : '—'}
+              {business.total_ratings !== undefined && business.total_ratings > 0 && (
+                <span className="text-text-secondary/70">({business.total_ratings})</span>
+              )}
             </span>
             {(business.category || business.tagline) && (
               <span className="flex items-center gap-1">

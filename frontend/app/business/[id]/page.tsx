@@ -16,6 +16,13 @@ interface Photo {
   caption?: string
 }
 
+interface UserRating {
+  id: string
+  rating: number
+  review_text?: string
+  created_at: string
+}
+
 interface Business {
   id: string
   name: string
@@ -28,6 +35,8 @@ interface Business {
   logo_url?: string
   photos?: Photo[]
   rating?: number
+  total_ratings?: number
+  user_rating?: UserRating | null
   favorite_count?: number
   location?: {
     latitude: number
@@ -61,12 +70,40 @@ export default function BusinessDetailPage() {
   const [favoriteLoading, setFavoriteLoading] = useState(false)
   const [lightboxOpen, setLightboxOpen] = useState(false)
   const [lightboxImage, setLightboxImage] = useState<string | null>(null)
+  const [ratingModalOpen, setRatingModalOpen] = useState(false)
+  const [userRole, setUserRole] = useState<string | null>(null)
+  const [ratingSubmitting, setRatingSubmitting] = useState(false)
 
   useEffect(() => {
     if (businessId) {
       fetchBusinessDetail()
     }
   }, [businessId])
+
+  // Fetch user role to check if consumer
+  useEffect(() => {
+    const fetchUserRole = async () => {
+      if (!user) {
+        setUserRole(null)
+        return
+      }
+      
+      try {
+        const token = await user.getIdToken()
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/me`, {
+          headers: { 'Authorization': `Bearer ${token}` },
+        })
+        if (response.ok) {
+          const result = await response.json()
+          setUserRole(result.data?.role || null)
+        }
+      } catch (error) {
+        console.error('Error fetching user role:', error)
+      }
+    }
+    
+    fetchUserRole()
+  }, [user])
 
   const fetchBusinessDetail = async () => {
     try {
@@ -91,7 +128,9 @@ export default function BusinessDetailPage() {
         is_verified: data.verification_status === 'approved',
         is_featured: data.metadata?.featured === true,
         is_favorited: data.is_favorited || false,
-        rating: 4.5,
+        rating: data.rating || 0,
+        total_ratings: data.total_ratings || 0,
+        user_rating: data.user_rating || null,
         logo_url: data.logo_url,
         photos: data.photos?.map((p: any) => ({ url: p.url, caption: p.alt_text })) || [],
         distance: data.distance_km,
@@ -273,6 +312,62 @@ export default function BusinessDetailPage() {
     setLightboxOpen(false)
     setLightboxImage(null)
   }
+
+  // Submit rating
+  const handleSubmitRating = async (rating: number, reviewText?: string) => {
+    if (!user) {
+      throw new Error('You must be logged in to rate')
+    }
+    
+    const token = await user.getIdToken()
+    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/businesses/${businessId}/ratings`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ rating, review_text: reviewText }),
+    })
+    
+    if (!response.ok) {
+      const error = await response.json()
+      throw new Error(error.message || 'Failed to submit rating')
+    }
+    
+    const result = await response.json()
+    
+    // Update local state with new rating
+    if (business) {
+      setBusiness({
+        ...business,
+        rating: result.data.new_average,
+        total_ratings: result.data.total_ratings,
+        user_rating: result.data.rating,
+      })
+    }
+  }
+
+  // Quick rate - one-click star rating
+  const handleQuickRate = async (rating: number) => {
+    if (!user) {
+      router.push('/login')
+      return
+    }
+    
+    setRatingSubmitting(true)
+    
+    try {
+      await handleSubmitRating(rating)
+    } catch (error) {
+      console.error('Rating error:', error)
+      // Could show a toast here
+    } finally {
+      setRatingSubmitting(false)
+    }
+  }
+
+  // Check if user can rate (consumer only, not business owner)
+  const canRate = userRole === 'consumer'
 
   // Get category gradient for fallback
   const getCategoryGradient = () => {
@@ -482,12 +577,57 @@ export default function BusinessDetailPage() {
           <h1 className="text-2xl font-bold text-text-primary mb-2">{business.name}</h1>
           
           <div className="flex items-center gap-3 mb-3 flex-wrap">
-            {/* Rating */}
-            <div className="flex items-center gap-1 text-gold">
-                            <svg width={16} height={16} viewBox="0 0 24 24" fill="#F5A623" className="text-gold">
-                <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"/>
-              </svg>
-              <span className="font-semibold text-text-primary">{business.rating}</span>
+            {/* Rating Display + Interactive Stars for Consumers */}
+            <div className="flex items-center gap-2">
+              {/* Show average rating */}
+              <div className="flex items-center gap-1">
+                <svg width={16} height={16} viewBox="0 0 24 24" fill="#F5A623">
+                  <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"/>
+                </svg>
+                <span className="font-semibold text-text-primary">
+                  {business.rating && business.rating > 0 ? business.rating.toFixed(1) : '—'}
+                </span>
+                <span className="text-text-secondary text-sm">
+                  ({business.total_ratings || 0})
+                </span>
+              </div>
+              
+              {/* Separator */}
+              {canRate && <span className="text-cream">|</span>}
+              
+              {/* Interactive Stars for Consumers */}
+              {canRate && (
+                <div className="flex items-center gap-1">
+                  <span className="text-text-secondary text-xs mr-1">
+                    {business.user_rating ? 'Your rating:' : 'Rate:'}
+                  </span>
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <button
+                      key={star}
+                      onClick={() => handleQuickRate(star)}
+                      disabled={ratingSubmitting}
+                      className="transition-transform hover:scale-125 active:scale-95 disabled:opacity-50"
+                      aria-label={`Rate ${star} stars`}
+                    >
+                      <svg 
+                        width={20} 
+                        height={20} 
+                        viewBox="0 0 24 24" 
+                        fill={business.user_rating && star <= business.user_rating.rating ? '#F5A623' : '#E8DED0'}
+                        className="transition-colors"
+                      >
+                        <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"/>
+                      </svg>
+                    </button>
+                  ))}
+                  {ratingSubmitting && (
+                    <svg className="w-4 h-4 animate-spin ml-1 text-gold" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                    </svg>
+                  )}
+                </div>
+              )}
             </div>
             
             {/* Category */}
