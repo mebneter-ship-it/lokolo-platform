@@ -1,9 +1,10 @@
 import { Router } from 'express';
-import { optionalAuth, AuthenticatedRequest } from '../middleware/auth';
-import { sendSuccess, sendError } from '../utils/responses';
+import { optionalAuth, authenticate, requireRole, AuthenticatedRequest } from '../middleware/auth';
+import { sendSuccess, sendError, sendCreated, sendNoContent } from '../utils/responses';
 import * as businessService from '../services/businessService';
 import * as mediaService from '../services/mediaService';
 import * as favoriteService from '../services/favoriteService';
+import * as ratingService from '../services/ratingService';
 import { validatePagination, validateSearchRadius, isValidCoordinates } from '../utils/validators';
 import { BusinessWithDistance } from '../models/types';
 
@@ -48,6 +49,10 @@ router.get('/search', optionalAuth, async (req: AuthenticatedRequest, res) => {
     
     const businesses = await businessService.searchBusinesses(filters);
     
+    // Get all business IDs for batch rating fetch
+    const businessIds = businesses.map((b: BusinessWithDistance) => b.id);
+    const ratingsMap = await ratingService.getBusinessesRatings(businessIds);
+    
     // Fetch logo URLs for all businesses
     const businessesWithLogos = await Promise.all(
       businesses.map(async (business: BusinessWithDistance) => {
@@ -55,16 +60,21 @@ router.get('/search', optionalAuth, async (req: AuthenticatedRequest, res) => {
           const media = await mediaService.getBusinessMedia(business.id);
           const logo = media.find((m: any) => m.media_type === 'logo');
           const logoUrl = logo ? await mediaService.generateDownloadUrl(logo.storage_path) : null;
-          console.log(`📷 Business ${business.name}: logo found=${!!logo}, url=${logoUrl ? 'yes' : 'no'}`);
+          const ratingData = ratingsMap.get(business.id);
+          
           return {
             ...business,
             logo_url: logoUrl,
+            rating: ratingData?.average_rating || 0,
+            total_ratings: ratingData?.total_ratings || 0,
           };
         } catch (error) {
-          console.error(`❌ Error fetching logo for ${business.name}:`, error);
+          console.error(`❌ Error fetching data for ${business.name}:`, error);
           return {
             ...business,
             logo_url: null,
+            rating: 0,
+            total_ratings: 0,
           };
         }
       })
@@ -134,14 +144,22 @@ router.get('/nearby', optionalAuth, async (req: AuthenticatedRequest, res) => {
     
     const businesses = await businessService.searchBusinesses(filters);
     
+    // Get all business IDs for batch rating fetch
+    const businessIds = businesses.map((b: BusinessWithDistance) => b.id);
+    const ratingsMap = await ratingService.getBusinessesRatings(businessIds);
+    
     // Fetch logo URLs for all businesses
     const businessesWithLogos = await Promise.all(
       businesses.map(async (business: BusinessWithDistance) => {
         const media = await mediaService.getBusinessMedia(business.id);
         const logo = media.find((m: any) => m.media_type === 'logo');
+        const ratingData = ratingsMap.get(business.id);
+        
         return {
           ...business,
           logo_url: logo ? await mediaService.generateDownloadUrl(logo.storage_path) : null,
+          rating: ratingData?.average_rating || 0,
+          total_ratings: ratingData?.total_ratings || 0,
         };
       })
     );
@@ -246,6 +264,15 @@ router.get('/:id', optionalAuth, async (req: AuthenticatedRequest, res) => {
       [id]
     );
     
+    // Get rating summary
+    const ratingSummary = await ratingService.getBusinessRatingSummary(id);
+    
+    // Get user's own rating if authenticated
+    let userRating = null;
+    if (req.user) {
+      userRating = await ratingService.getUserRating(id, req.user.id);
+    }
+    
     sendSuccess(res, {
       ...business,
       logo_url: logo?.url || null,
@@ -255,6 +282,10 @@ router.get('/:id', optionalAuth, async (req: AuthenticatedRequest, res) => {
       categories: categoriesResult.rows.map((r: any) => r.category_name),
       is_favorited: isFavorited,
       favorite_count: favoriteCount,
+      rating: ratingSummary.average_rating,
+      total_ratings: ratingSummary.total_ratings,
+      rating_distribution: ratingSummary.rating_distribution,
+      user_rating: userRating,
     });
   } catch (error) {
     console.error('Get business error:', error);
@@ -355,6 +386,118 @@ router.get('/:id/hours', async (req: AuthenticatedRequest, res) => {
   } catch (error) {
     console.error('Get hours error:', error);
     sendError(res, 'Failed to fetch business hours', 500);
+  }
+});
+
+// =============================================================================
+// RATINGS ENDPOINTS - Consumer Only
+// =============================================================================
+
+/**
+ * GET /api/v1/businesses/:id/ratings
+ * Get all ratings for a business with summary
+ */
+router.get('/:id/ratings', async (req: AuthenticatedRequest, res) => {
+  try {
+    const { id } = req.params;
+    const { page, limit } = validatePagination(
+      Number(req.query.page),
+      Number(req.query.limit)
+    );
+    
+    const business = await businessService.getBusinessById(id);
+    if (!business) {
+      sendError(res, 'Business not found', 404);
+      return;
+    }
+    
+    const summary = await ratingService.getBusinessRatingSummary(id);
+    const ratings = await ratingService.getBusinessRatings(id, limit, (page - 1) * limit);
+    
+    sendSuccess(res, {
+      summary,
+      ratings,
+      pagination: {
+        page,
+        limit,
+        total: summary.total_ratings,
+        totalPages: Math.ceil(summary.total_ratings / limit),
+      },
+    });
+  } catch (error) {
+    console.error('Get ratings error:', error);
+    sendError(res, 'Failed to fetch ratings', 500);
+  }
+});
+
+/**
+ * POST /api/v1/businesses/:id/ratings
+ * Submit or update a rating (consumers only)
+ */
+router.post('/:id/ratings', authenticate, requireRole('consumer'), async (req: AuthenticatedRequest, res) => {
+  try {
+    const { id } = req.params;
+    const { rating, review_text } = req.body;
+    
+    // Validate rating
+    if (!rating || rating < 1 || rating > 5 || !Number.isInteger(rating)) {
+      sendError(res, 'Rating must be an integer between 1 and 5', 400);
+      return;
+    }
+    
+    // Check business exists
+    const business = await businessService.getBusinessById(id);
+    if (!business) {
+      sendError(res, 'Business not found', 404);
+      return;
+    }
+    
+    // Check user is not the business owner
+    if (business.owner_id === req.user!.id) {
+      sendError(res, 'You cannot rate your own business', 403);
+      return;
+    }
+    
+    const result = await ratingService.upsertRating({
+      business_id: id,
+      user_id: req.user!.id,
+      rating,
+      review_text,
+    });
+    
+    // Get updated summary
+    const summary = await ratingService.getBusinessRatingSummary(id);
+    
+    sendCreated(res, {
+      rating: result,
+      new_average: summary.average_rating,
+      total_ratings: summary.total_ratings,
+    }, 'Rating submitted successfully');
+  } catch (error) {
+    console.error('Submit rating error:', error);
+    sendError(res, 'Failed to submit rating', 500);
+  }
+});
+
+/**
+ * DELETE /api/v1/businesses/:id/ratings
+ * Delete user's rating for a business (consumers only)
+ */
+router.delete('/:id/ratings', authenticate, requireRole('consumer'), async (req: AuthenticatedRequest, res) => {
+  try {
+    const { id } = req.params;
+    
+    const deleted = await ratingService.deleteRating(id, req.user!.id);
+    
+    if (!deleted) {
+      sendError(res, 'Rating not found', 404);
+      return;
+    }
+    
+    sendNoContent(res);
+  } catch (error) {
+    console.error('Delete rating error:', error);
+    sendError(res, 'Failed to delete rating', 500);
   }
 });
 
