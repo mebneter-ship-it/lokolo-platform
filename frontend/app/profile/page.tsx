@@ -4,12 +4,26 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/hooks/useAuth'
 import { HeartIcon, LocationIcon, BusinessIcon } from '@/components/icons/LokoloIcons'
+import { updateProfile } from 'firebase/auth'
 
 export default function ProfilePage() {
   const router = useRouter()
   const { user, logout, loading } = useAuth()
   const [userRole, setUserRole] = useState<string | null>(null)
   const [roleLoading, setRoleLoading] = useState(true)
+  
+  // Edit profile state
+  const [isEditing, setIsEditing] = useState(false)
+  const [editName, setEditName] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [saveError, setSaveError] = useState('')
+
+  // Redirect to login if not authenticated
+  useEffect(() => {
+    if (!loading && !user) {
+      router.push('/login')
+    }
+  }, [loading, user, router])
 
   // Fetch user role from API
   useEffect(() => {
@@ -36,16 +50,45 @@ export default function ProfilePage() {
 
     if (user) {
       fetchUserRole()
+      setEditName(user.displayName || '')
     }
   }, [user])
 
-  // Redirect to login if not authenticated
-  if (!loading && !user) {
-    router.push('/login')
-    return null
+  const handleEditSave = async () => {
+    if (!user || !editName.trim()) return
+    
+    setSaving(true)
+    setSaveError('')
+    
+    try {
+      // Update Firebase profile
+      await updateProfile(user, {
+        displayName: editName.trim()
+      })
+      
+      // Update backend
+      const token = await user.getIdToken()
+      await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/me`, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          display_name: editName.trim(),
+        }),
+      })
+      
+      setIsEditing(false)
+    } catch (error) {
+      console.error('Failed to update profile:', error)
+      setSaveError('Failed to save. Please try again.')
+    } finally {
+      setSaving(false)
+    }
   }
 
-  if (loading || roleLoading) {
+  if (loading || roleLoading || !user) {
     return (
       <div className="min-h-screen bg-cream flex items-center justify-center">
         <div className="text-center">
@@ -89,42 +132,97 @@ export default function ProfilePage() {
       <div className="p-4 max-w-2xl mx-auto">
         {/* Profile Card */}
         <div className="bg-white rounded-2xl shadow-md p-6 mb-4">
-          {/* Avatar */}
-          <div className="flex items-center gap-4 mb-6">
-            <div className="w-20 h-20 rounded-full bg-gold flex items-center justify-center">
-              <span className="text-4xl font-bold text-text-primary">
-                {user?.email?.[0].toUpperCase() || '?'}
-              </span>
+          {/* Avatar and Edit Button */}
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-4">
+              <div className="w-20 h-20 rounded-full bg-gold flex items-center justify-center">
+                <span className="text-4xl font-bold text-text-primary">
+                  {user?.email?.[0].toUpperCase() || '?'}
+                </span>
+              </div>
+              <div>
+                <h2 className="text-xl font-bold text-text-primary">
+                  {user?.displayName || 'User'}
+                </h2>
+                <p className="text-text-secondary">{user?.email}</p>
+              </div>
             </div>
-            <div>
-              <h2 className="text-xl font-bold text-text-primary">
-                {user?.displayName || 'User'}
-              </h2>
-              <p className="text-text-secondary">{user?.email}</p>
-            </div>
+            
+            {/* Edit Button */}
+            {!isEditing && (
+              <button
+                onClick={() => {
+                  setEditName(user?.displayName || '')
+                  setIsEditing(true)
+                }}
+                className="p-2 rounded-full bg-cream hover:bg-gold/20 transition-colors"
+              >
+                <svg className="w-5 h-5 text-text-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                </svg>
+              </button>
+            )}
           </div>
 
-          {/* Account Info */}
-          <div className="space-y-4 border-t border-cream pt-6">
-            <div>
-              <label className="text-sm font-semibold text-text-secondary">Email</label>
-              <p className="text-text-primary">{user?.email}</p>
+          {/* Edit Form */}
+          {isEditing ? (
+            <div className="border-t border-cream pt-6">
+              <label className="block text-sm font-semibold text-text-primary mb-2">
+                Display Name
+              </label>
+              <input
+                type="text"
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+                className="w-full px-4 py-3 rounded-xl border-2 border-cream focus:border-gold focus:outline-none text-text-primary mb-4"
+                placeholder="Your name"
+                style={{ fontSize: '16px' }}
+              />
+              
+              {saveError && (
+                <p className="text-red-500 text-sm mb-4">{saveError}</p>
+              )}
+              
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setIsEditing(false)}
+                  disabled={saving}
+                  className="flex-1 py-3 border-2 border-cream text-text-secondary font-semibold rounded-xl hover:bg-cream transition-colors disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleEditSave}
+                  disabled={saving || !editName.trim()}
+                  className="flex-1 py-3 bg-gold text-text-primary font-bold rounded-xl shadow-md hover:bg-[#E69515] transition-all disabled:opacity-50"
+                >
+                  {saving ? 'Saving...' : 'Save'}
+                </button>
+              </div>
             </div>
-            
-            <div>
-              <label className="text-sm font-semibold text-text-secondary">Account Type</label>
-              <p className="text-text-primary capitalize">{userRole || 'Consumer'}</p>
+          ) : (
+            /* Account Info */
+            <div className="space-y-4 border-t border-cream pt-6">
+              <div>
+                <label className="text-sm font-semibold text-text-secondary">Email</label>
+                <p className="text-text-primary">{user?.email}</p>
+              </div>
+              
+              <div>
+                <label className="text-sm font-semibold text-text-secondary">Account Type</label>
+                <p className="text-text-primary capitalize">{userRole || 'Consumer'}</p>
+              </div>
+              
+              <div>
+                <label className="text-sm font-semibold text-text-secondary">Member Since</label>
+                <p className="text-text-primary">
+                  {user?.metadata.creationTime 
+                    ? new Date(user.metadata.creationTime).toLocaleDateString()
+                    : 'Recently'}
+                </p>
+              </div>
             </div>
-            
-            <div>
-              <label className="text-sm font-semibold text-text-secondary">Member Since</label>
-              <p className="text-text-primary">
-                {user?.metadata.creationTime 
-                  ? new Date(user.metadata.creationTime).toLocaleDateString()
-                  : 'Recently'}
-              </p>
-            </div>
-          </div>
+          )}
         </div>
 
         {/* Quick Actions - Different for Consumer vs Supplier */}
