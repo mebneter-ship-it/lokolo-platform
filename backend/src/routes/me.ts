@@ -47,6 +47,29 @@ router.patch('/', async (req: AuthenticatedRequest, res) => {
 });
 
 /**
+ * DELETE /api/v1/me
+ * Delete user account and all related data
+ */
+router.delete('/', async (req: AuthenticatedRequest, res) => {
+  try {
+    const user = await userService.getUserById(req.user!.id);
+    
+    if (!user) {
+      sendError(res, 'User not found', 404);
+      return;
+    }
+    
+    // Delete all user data
+    await userService.deleteUser(req.user!.id);
+    
+    sendSuccess(res, { message: 'Account deleted successfully' });
+  } catch (error) {
+    console.error('Failed to delete account:', error);
+    sendError(res, 'Failed to delete account', 500);
+  }
+});
+
+/**
  * GET /api/v1/me/favorites
  * Get user's favorite businesses
  */

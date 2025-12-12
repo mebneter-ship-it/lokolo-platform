@@ -106,3 +106,58 @@ export const getUserBusinesses = async (userId: string) => {
   );
   return result.rows;
 };
+
+/**
+ * Get count of user's businesses
+ */
+export const getUserBusinessCount = async (userId: string): Promise<number> => {
+  const pool = getPool();
+  const result = await pool.query(
+    'SELECT COUNT(*) FROM businesses WHERE owner_id = $1',
+    [userId]
+  );
+  return parseInt(result.rows[0].count, 10);
+};
+
+/**
+ * Delete user account and all related data
+ * - For consumers: deletes favorites, ratings
+ * - For suppliers: deletes all businesses (cascades to photos, hours, etc), favorites, ratings
+ */
+export const deleteUser = async (userId: string): Promise<void> => {
+  const pool = getPool();
+  
+  // Use a transaction to ensure all deletions succeed or none
+  const client = await pool.connect();
+  
+  try {
+    await client.query('BEGIN');
+    
+    // Delete user's ratings
+    await client.query('DELETE FROM business_ratings WHERE user_id = $1', [userId]);
+    
+    // Delete user's favorites
+    await client.query('DELETE FROM favorites WHERE user_id = $1', [userId]);
+    
+    // Delete user's message threads and messages
+    await client.query(`
+      DELETE FROM messages WHERE thread_id IN (
+        SELECT id FROM threads WHERE consumer_id = $1 OR supplier_id = $1
+      )
+    `, [userId]);
+    await client.query('DELETE FROM threads WHERE consumer_id = $1 OR supplier_id = $1', [userId]);
+    
+    // Delete user's businesses (this cascades to business_hours, business_media, etc)
+    await client.query('DELETE FROM businesses WHERE owner_id = $1', [userId]);
+    
+    // Finally delete the user
+    await client.query('DELETE FROM users WHERE id = $1', [userId]);
+    
+    await client.query('COMMIT');
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
+};
