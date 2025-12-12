@@ -17,6 +17,12 @@ export default function ProfilePage() {
   const [editName, setEditName] = useState('')
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState('')
+  
+  // Delete account state
+  const [showDeleteModal, setShowDeleteModal] = useState(false)
+  const [deleteConfirmText, setDeleteConfirmText] = useState('')
+  const [deleting, setDeleting] = useState(false)
+  const [deleteError, setDeleteError] = useState('')
 
   // Redirect to login if not authenticated
   useEffect(() => {
@@ -85,6 +91,43 @@ export default function ProfilePage() {
       setSaveError('Failed to save. Please try again.')
     } finally {
       setSaving(false)
+    }
+  }
+
+  const handleDeleteAccount = async () => {
+    if (!user || deleteConfirmText !== 'DELETE') return
+    
+    setDeleting(true)
+    setDeleteError('')
+    
+    try {
+      // Delete from backend first
+      const token = await user.getIdToken()
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/me`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      })
+      
+      if (!response.ok) {
+        throw new Error('Failed to delete account')
+      }
+      
+      // Delete from Firebase
+      await user.delete()
+      
+      // Redirect to home
+      router.push('/')
+    } catch (error: any) {
+      console.error('Failed to delete account:', error)
+      if (error.code === 'auth/requires-recent-login') {
+        setDeleteError('Please sign out and sign in again before deleting your account.')
+      } else {
+        setDeleteError('Failed to delete account. Please try again.')
+      }
+    } finally {
+      setDeleting(false)
     }
   }
 
@@ -290,6 +333,14 @@ export default function ProfilePage() {
           Sign Out
         </button>
 
+        {/* Delete Account Button */}
+        <button
+          onClick={() => setShowDeleteModal(true)}
+          className="w-full mt-3 py-4 bg-white border-2 border-red-500 text-red-500 font-bold rounded-xl hover:bg-red-50 transition-colors"
+        >
+          Delete Account
+        </button>
+
         {/* Version Info */}
         <div className="text-center mt-8">
           <p className="text-xs text-text-secondary">
@@ -297,6 +348,65 @@ export default function ProfilePage() {
           </p>
         </div>
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 z-[100] bg-black/50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6">
+            <h3 className="text-xl font-bold text-red-600 mb-4">Delete Account</h3>
+            
+            <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-4">
+              <p className="text-red-800 text-sm font-medium mb-2">
+                ⚠️ This action cannot be undone!
+              </p>
+              <p className="text-red-700 text-sm">
+                {isSupplier 
+                  ? 'All your businesses, business photos, business hours, and account data will be permanently deleted.'
+                  : 'All your favorites, ratings, and account data will be permanently deleted.'
+                }
+              </p>
+            </div>
+            
+            <p className="text-text-secondary text-sm mb-4">
+              To confirm, type <span className="font-bold text-text-primary">DELETE</span> below:
+            </p>
+            
+            <input
+              type="text"
+              value={deleteConfirmText}
+              onChange={(e) => setDeleteConfirmText(e.target.value)}
+              placeholder="Type DELETE to confirm"
+              className="w-full px-4 py-3 rounded-xl border-2 border-cream focus:border-red-500 focus:outline-none text-text-primary mb-4"
+              style={{ fontSize: '16px' }}
+            />
+            
+            {deleteError && (
+              <p className="text-red-500 text-sm mb-4">{deleteError}</p>
+            )}
+            
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  setShowDeleteModal(false)
+                  setDeleteConfirmText('')
+                  setDeleteError('')
+                }}
+                disabled={deleting}
+                className="flex-1 py-3 border-2 border-cream text-text-secondary font-semibold rounded-xl hover:bg-cream transition-colors disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDeleteAccount}
+                disabled={deleting || deleteConfirmText !== 'DELETE'}
+                className="flex-1 py-3 bg-red-600 text-white font-bold rounded-xl shadow-md hover:bg-red-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {deleting ? 'Deleting...' : 'Delete Forever'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
