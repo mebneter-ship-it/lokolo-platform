@@ -6,6 +6,7 @@ import {
   createUserWithEmailAndPassword,
   signOut,
   onAuthStateChanged,
+  sendPasswordResetEmail,
   User
 } from 'firebase/auth'
 import { auth } from '@/lib/firebase'
@@ -16,6 +17,7 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<void>
   signup: (email: string, password: string) => Promise<void>
   logout: () => Promise<void>
+  resetPassword: (email: string) => Promise<void>
   getIdToken: () => Promise<string | null>
 }
 
@@ -25,6 +27,7 @@ const AuthContext = createContext<AuthContextType>({
   login: async () => {},
   signup: async () => {},
   logout: async () => {},
+  resetPassword: async () => {},
   getIdToken: async () => null,
 })
 
@@ -69,6 +72,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
+  const resetPassword = async (email: string) => {
+    try {
+      await sendPasswordResetEmail(auth, email)
+    } catch (error: any) {
+      console.error('Reset password error:', error)
+      throw new Error(error.message || 'Failed to send reset email')
+    }
+  }
+
   const getIdToken = async () => {
     if (!user) return null
     try {
@@ -85,6 +97,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     login,
     signup,
     logout,
+    resetPassword,
     getIdToken,
   }
 

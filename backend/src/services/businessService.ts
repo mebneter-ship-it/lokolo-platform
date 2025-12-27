@@ -154,9 +154,30 @@ export const deleteBusiness = async (id: string): Promise<void> => {
 };
 
 /**
- * Publish business (change status to active)
+ * Publish business (change status to pending for admin review)
  */
 export const publishBusiness = async (id: string): Promise<Business> => {
+  const pool = getPool();
+  
+  const result = await pool.query(
+    `UPDATE businesses 
+     SET status = 'pending', updated_at = CURRENT_TIMESTAMP
+     WHERE id = $1
+     RETURNING *`,
+    [id]
+  );
+  
+  if (result.rows.length === 0) {
+    throw new Error('Business not found');
+  }
+  
+  return result.rows[0];
+};
+
+/**
+ * Approve business (admin sets status to active)
+ */
+export const approveBusiness = async (id: string): Promise<Business> => {
   const pool = getPool();
   
   const result = await pool.query(
@@ -175,14 +196,46 @@ export const publishBusiness = async (id: string): Promise<Business> => {
 };
 
 /**
+ * Reject business submission (admin rejects)
+ */
+export const rejectBusinessSubmission = async (id: string, reason?: string): Promise<Business> => {
+  const pool = getPool();
+  
+  const result = await pool.query(
+    `UPDATE businesses 
+     SET status = 'rejected', rejection_reason = $2, updated_at = CURRENT_TIMESTAMP
+     WHERE id = $1
+     RETURNING *`,
+    [id, reason || null]
+  );
+  
+  if (result.rows.length === 0) {
+    throw new Error('Business not found');
+  }
+  
+  return result.rows[0];
+};
+
+/**
  * Search businesses by location and filters
  */
 export const searchBusinesses = async (filters: BusinessSearchFilters): Promise<BusinessWithDistance[]> => {
   const pool = getPool();
   
-  const conditions: string[] = ['status = \'active\''];
+  const conditions: string[] = [];
   const values: any[] = [];
   let paramIndex = 1;
+  
+  // Status filter - default to 'active' only if no status specified
+  if (filters.status) {
+    conditions.push(`status = $${paramIndex}`);
+    values.push(filters.status);
+    paramIndex++;
+  } else if (filters.status !== null) {
+    // Default to active for consumer search (when status is undefined)
+    // Pass status=null to get all statuses (admin use)
+    conditions.push(`status = 'active'`);
+  }
   
   // Location-based search
   if (filters.latitude && filters.longitude) {
@@ -204,13 +257,6 @@ export const searchBusinesses = async (filters: BusinessSearchFilters): Promise<
     paramIndex++;
   }
   
-  // Status filter
-  if (filters.status) {
-    conditions.push(`status = $${paramIndex}`);
-    values.push(filters.status);
-    paramIndex++;
-  }
-  
   // Verification status filter
   if (filters.verification_status) {
     conditions.push(`verification_status = $${paramIndex}`);
@@ -220,6 +266,8 @@ export const searchBusinesses = async (filters: BusinessSearchFilters): Promise<
   
   const limit = filters.limit || 20;
   const offset = filters.page ? (filters.page - 1) * limit : 0;
+  
+  const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
   
   const query = `
     SELECT 
@@ -233,7 +281,7 @@ export const searchBusinesses = async (filters: BusinessSearchFilters): Promise<
       year_established, employee_count_range, status, verification_status,
       verified_at, created_at, updated_at, published_at, metadata
     FROM businesses 
-    WHERE ${conditions.join(' AND ')}
+    ${whereClause}
     ${filters.latitude && filters.longitude ? 'ORDER BY distance_km ASC' : 'ORDER BY created_at DESC'}
     LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
   `;

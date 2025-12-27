@@ -4,6 +4,7 @@ import { sendSuccess, sendError } from '../utils/responses';
 import * as verificationService from '../services/verificationService';
 import * as userService from '../services/userService';
 import * as businessService from '../services/businessService';
+import * as adminService from '../services/adminService';
 import { validatePagination } from '../utils/validators';
 import { UserRole, VerificationStatus } from '../models/types';
 
@@ -121,17 +122,24 @@ router.get('/users', async (req: AuthenticatedRequest, res) => {
       Number(req.query.limit)
     );
     
-    // This is a placeholder - you'd implement getUsersWithPagination in userService
+    const { role, search } = req.query;
+    
+    const { users, total } = await adminService.getUsers(page, limit, {
+      role: role as string,
+      search: search as string,
+    });
+    
     sendSuccess(res, {
-      users: [],
+      users,
       pagination: {
         page,
         limit,
-        total: 0,
-        totalPages: 0,
+        total,
+        totalPages: Math.ceil(total / limit),
       },
     });
   } catch (error) {
+    console.error('Failed to fetch users:', error);
     sendError(res, 'Failed to fetch users', 500);
   }
 });
@@ -171,8 +179,9 @@ router.get('/businesses', async (req: AuthenticatedRequest, res) => {
     );
     
     // Use search with admin-specific filters
+    // Pass status: null to get ALL statuses (not just active)
     const businesses = await businessService.searchBusinesses({
-      status: status as any,
+      status: status ? (status as any) : null,  // null = all statuses for admin
       verification_status: verification_status as any,
       page: validPage,
       limit: validLimit,
@@ -199,7 +208,7 @@ router.patch('/businesses/:id/status', async (req: AuthenticatedRequest, res) =>
     const { id } = req.params;
     const { status } = req.body;
     
-    if (!status || !['draft', 'active', 'suspended', 'archived'].includes(status)) {
+    if (!status || !['draft', 'pending', 'active', 'suspended', 'archived', 'rejected'].includes(status)) {
       sendError(res, 'Invalid status', 400);
       return;
     }
@@ -212,20 +221,85 @@ router.patch('/businesses/:id/status', async (req: AuthenticatedRequest, res) =>
 });
 
 /**
+ * POST /api/v1/admin/businesses/:id/approve
+ * Approve a pending business submission (makes it active and visible)
+ */
+router.post('/businesses/:id/approve', async (req: AuthenticatedRequest, res) => {
+  try {
+    const { id } = req.params;
+    
+    const updatedBusiness = await businessService.approveBusiness(id);
+    sendSuccess(res, updatedBusiness, 'Business approved and published');
+  } catch (error) {
+    console.error('Failed to approve business:', error);
+    sendError(res, 'Failed to approve business', 500);
+  }
+});
+
+/**
+ * POST /api/v1/admin/businesses/:id/reject
+ * Reject a pending business submission
+ */
+router.post('/businesses/:id/reject', async (req: AuthenticatedRequest, res) => {
+  try {
+    const { id } = req.params;
+    const { reason } = req.body;
+    
+    const updatedBusiness = await businessService.rejectBusinessSubmission(id, reason);
+    sendSuccess(res, updatedBusiness, 'Business submission rejected');
+  } catch (error) {
+    console.error('Failed to reject business:', error);
+    sendError(res, 'Failed to reject business', 500);
+  }
+});
+
+/**
+ * PATCH /api/v1/admin/businesses/:id/verification
+ * Update business verification status (approve, reject Black ownership)
+ */
+router.patch('/businesses/:id/verification', async (req: AuthenticatedRequest, res) => {
+  try {
+    const { id } = req.params;
+    const { verification_status } = req.body;
+    
+    if (!verification_status || !['pending', 'approved', 'rejected'].includes(verification_status)) {
+      sendError(res, 'Invalid verification status. Must be pending, approved, or rejected', 400);
+      return;
+    }
+    
+    const updatedBusiness = await businessService.updateBusiness(id, { verification_status });
+    sendSuccess(res, updatedBusiness, `Business verification ${verification_status}`);
+  } catch (error) {
+    sendError(res, 'Failed to update verification status', 500);
+  }
+});
+
+/**
  * GET /api/v1/admin/stats
  * Get platform statistics
  */
 router.get('/stats', async (req: AuthenticatedRequest, res) => {
   try {
-    // This is a placeholder - implement actual stats in a separate service
-    sendSuccess(res, {
-      total_users: 0,
-      total_businesses: 0,
-      pending_verifications: 0,
-      active_businesses: 0,
-    });
+    const stats = await adminService.getStats();
+    sendSuccess(res, stats);
   } catch (error) {
+    console.error('Failed to fetch statistics:', error);
     sendError(res, 'Failed to fetch statistics', 500);
+  }
+});
+
+/**
+ * GET /api/v1/admin/activity
+ * Get recent platform activity
+ */
+router.get('/activity', async (req: AuthenticatedRequest, res) => {
+  try {
+    const limit = Math.min(Number(req.query.limit) || 10, 50);
+    const activity = await adminService.getRecentActivity(limit);
+    sendSuccess(res, activity);
+  } catch (error) {
+    console.error('Failed to fetch activity:', error);
+    sendError(res, 'Failed to fetch activity', 500);
   }
 });
 

@@ -8,12 +8,19 @@ import { useAuth } from '@/hooks/useAuth'
 
 export default function LoginPage() {
   const router = useRouter()
-  const { login } = useAuth()
+  const { login, resetPassword } = useAuth()
   
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  
+  // Forgot password state
+  const [showForgotPassword, setShowForgotPassword] = useState(false)
+  const [resetEmail, setResetEmail] = useState('')
+  const [resetLoading, setResetLoading] = useState(false)
+  const [resetSuccess, setResetSuccess] = useState(false)
+  const [resetError, setResetError] = useState('')
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -62,6 +69,25 @@ export default function LoginPage() {
       }
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setResetError('')
+    setResetLoading(true)
+
+    try {
+      await resetPassword(resetEmail)
+      setResetSuccess(true)
+    } catch (err: any) {
+      if (err.message.includes('user-not-found')) {
+        setResetError('No account found with this email')
+      } else {
+        setResetError('Failed to send reset email. Please try again.')
+      }
+    } finally {
+      setResetLoading(false)
     }
   }
 
@@ -139,6 +165,13 @@ export default function LoginPage() {
                   disabled={loading}
                   style={{ fontSize: '16px' }} // Prevents iOS zoom
                 />
+                <button
+                  type="button"
+                  onClick={() => { setShowForgotPassword(true); setResetEmail(email); }}
+                  className="mt-2 text-sm text-orange hover:text-[#A04D15] font-medium"
+                >
+                  Forgot password?
+                </button>
               </div>
 
               {/* Login Button */}
@@ -192,6 +225,77 @@ export default function LoginPage() {
           </div>
         </div>
       </div>
+
+      {/* Forgot Password Modal */}
+      {showForgotPassword && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6">
+            {resetSuccess ? (
+              <>
+                <div className="text-center mb-6">
+                  <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <svg className="w-8 h-8 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                  </div>
+                  <h3 className="text-xl font-bold text-text-primary mb-2">Check your email</h3>
+                  <p className="text-text-secondary">
+                    We've sent a password reset link to <span className="font-semibold">{resetEmail}</span>
+                  </p>
+                </div>
+                <button
+                  onClick={() => { setShowForgotPassword(false); setResetSuccess(false); setResetEmail(''); }}
+                  className="w-full py-3 bg-gold text-text-primary font-bold rounded-xl"
+                >
+                  Back to Login
+                </button>
+              </>
+            ) : (
+              <>
+                <h3 className="text-xl font-bold text-text-primary mb-2">Reset Password</h3>
+                <p className="text-text-secondary mb-6">
+                  Enter your email and we'll send you a link to reset your password.
+                </p>
+                
+                <form onSubmit={handleForgotPassword}>
+                  {resetError && (
+                    <div className="bg-red-50 border-2 border-red-200 rounded-xl p-3 mb-4">
+                      <p className="text-red-600 text-sm">{resetError}</p>
+                    </div>
+                  )}
+                  
+                  <input
+                    type="email"
+                    value={resetEmail}
+                    onChange={(e) => setResetEmail(e.target.value)}
+                    required
+                    placeholder="your@email.com"
+                    className="w-full px-4 py-3 rounded-xl border-2 border-cream focus:border-gold focus:outline-none text-text-primary mb-4"
+                    style={{ fontSize: '16px' }}
+                  />
+                  
+                  <div className="flex gap-3">
+                    <button
+                      type="button"
+                      onClick={() => { setShowForgotPassword(false); setResetError(''); }}
+                      className="flex-1 py-3 border-2 border-cream text-text-secondary font-semibold rounded-xl hover:bg-cream"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={resetLoading}
+                      className="flex-1 py-3 bg-gold text-text-primary font-bold rounded-xl disabled:opacity-50"
+                    >
+                      {resetLoading ? 'Sending...' : 'Send Link'}
+                    </button>
+                  </div>
+                </form>
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   )
 }

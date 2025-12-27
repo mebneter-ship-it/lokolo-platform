@@ -5,7 +5,7 @@
 
 // Enum types
 export type UserRole = 'consumer' | 'supplier' | 'admin';
-export type BusinessStatus = 'draft' | 'active' | 'suspended' | 'archived';
+export type BusinessStatus = 'draft' | 'pending' | 'active' | 'suspended' | 'archived' | 'rejected';
 export type VerificationStatus = 'pending' | 'approved' | 'rejected';
 export type MediaType = 'logo' | 'photo';
 export type DayOfWeek = 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday' | 'sunday';
@@ -194,7 +194,7 @@ export interface BusinessSearchFilters {
   radius_km?: number;
   city?: string;
   category?: string;
-  status?: BusinessStatus;
+  status?: BusinessStatus | null;  // null = all statuses (for admin)
   verification_status?: VerificationStatus;
   page?: number;
   limit?: number;
