@@ -13,15 +13,33 @@ export const submitVerificationRequest = async (
   requestNotes?: string
 ): Promise<VerificationRequest> => {
   const pool = getPool();
+  const client = await pool.connect();
   
-  const result = await pool.query(
-    `INSERT INTO verification_requests (business_id, requester_id, request_notes, status)
-     VALUES ($1, $2, $3, 'pending')
-     RETURNING *`,
-    [businessId, requesterId, requestNotes || null]
-  );
-  
-  return result.rows[0];
+  try {
+    await client.query('BEGIN');
+    
+    // Create verification request
+    const result = await client.query(
+      `INSERT INTO verification_requests (business_id, requester_id, request_notes, status)
+       VALUES ($1, $2, $3, 'pending')
+       RETURNING *`,
+      [businessId, requesterId, requestNotes || null]
+    );
+    
+    // Update business verification_status to 'pending'
+    await client.query(
+      `UPDATE businesses SET verification_status = 'pending' WHERE id = $1`,
+      [businessId]
+    );
+    
+    await client.query('COMMIT');
+    return result.rows[0];
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
 };
 
 /**
@@ -52,14 +70,35 @@ export const getBusinessVerificationRequest = async (businessId: string): Promis
 };
 
 /**
- * Get all pending verification requests (admin)
+ * Get all pending verification requests (admin) - legacy function
  */
 export const getPendingVerificationRequests = async (
   page: number = 1,
   limit: number = 20
 ): Promise<{ requests: any[]; total: number }> => {
+  return getVerificationRequests('pending', page, limit);
+};
+
+/**
+ * Get verification requests with optional status filter (admin)
+ */
+export const getVerificationRequests = async (
+  status: string | undefined,
+  page: number = 1,
+  limit: number = 20
+): Promise<{ requests: any[]; total: number }> => {
   const pool = getPool();
   const offset = (page - 1) * limit;
+  
+  let whereClause = '';
+  const queryParams: any[] = [];
+  let paramIndex = 1;
+  
+  if (status) {
+    whereClause = `WHERE vr.status = $${paramIndex}`;
+    queryParams.push(status);
+    paramIndex++;
+  }
   
   const result = await pool.query(
     `SELECT 
@@ -70,14 +109,16 @@ export const getPendingVerificationRequests = async (
      FROM verification_requests vr
      INNER JOIN businesses b ON vr.business_id = b.id
      INNER JOIN users u ON vr.requester_id = u.id
-     WHERE vr.status = 'pending'
-     ORDER BY vr.created_at ASC
-     LIMIT $1 OFFSET $2`,
-    [limit, offset]
+     ${whereClause}
+     ORDER BY vr.created_at DESC
+     LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`,
+    [...queryParams, limit, offset]
   );
   
+  const countParams = status ? [status] : [];
   const countResult = await pool.query(
-    "SELECT COUNT(*) FROM verification_requests WHERE status = 'pending'"
+    `SELECT COUNT(*) FROM verification_requests vr ${whereClause}`,
+    countParams
   );
   
   return {
@@ -231,4 +272,47 @@ export const generateDocumentDownloadUrl = async (storagePath: string): Promise<
   });
   
   return downloadUrl;
+};
+
+/**
+ * Delete a verification document (only allowed when request is pending)
+ * NEW FUNCTION ADDED
+ */
+export const deleteVerificationDocument = async (
+  documentId: string,
+  businessId: string,
+  userId: string
+): Promise<void> => {
+  const pool = getPool();
+  const bucket = getBucket();
+  
+  // Get document and verify ownership
+  const docResult = await pool.query(
+    `SELECT vd.*, vr.status as request_status
+     FROM verification_documents vd
+     JOIN verification_requests vr ON vr.id = vd.verification_request_id
+     JOIN businesses b ON b.id = vr.business_id
+     WHERE vd.id = $1 AND vr.business_id = $2 AND b.owner_id = $3`,
+    [documentId, businessId, userId]
+  );
+  
+  if (docResult.rows.length === 0) {
+    throw new Error('Document not found');
+  }
+  
+  if (docResult.rows[0].request_status !== 'pending') {
+    throw new Error('Cannot delete documents from a reviewed request');
+  }
+  
+  const storagePath = docResult.rows[0].storage_path;
+  
+  // Delete from database
+  await pool.query('DELETE FROM verification_documents WHERE id = $1', [documentId]);
+  
+  // Delete from Cloud Storage
+  try {
+    await bucket.file(storagePath).delete();
+  } catch (err) {
+    console.warn(`Could not delete file from storage: ${storagePath}`, err);
+  }
 };

@@ -11,6 +11,7 @@ export default function SupplierDashboard() {
   const { user } = useAuth()
   const [businesses, setBusinesses] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const [actionLoading, setActionLoading] = useState<string | null>(null)
 
   useEffect(() => {
     const loadBusinesses = async () => {
@@ -57,6 +58,42 @@ export default function SupplierDashboard() {
     } catch (error) {
       console.error('Delete error:', error)
       alert('Failed to delete business')
+    }
+  }
+
+  const handleSubmitForApproval = async (businessId: string) => {
+    if (!confirm('Submit this business for admin approval? You can still edit it while pending.')) {
+      return
+    }
+
+    setActionLoading(businessId)
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/supplier/businesses/${businessId}/publish`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${await user?.getIdToken()}`,
+        },
+      })
+
+      if (!response.ok) throw new Error('Failed to submit')
+
+      // Reload businesses to get updated status
+      const reloadResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/supplier/businesses`, {
+        headers: {
+          'Authorization': `Bearer ${await user?.getIdToken()}`,
+        },
+      })
+      if (reloadResponse.ok) {
+        const data = await reloadResponse.json()
+        setBusinesses(data.data.businesses || [])
+      }
+      
+      alert('Business submitted for approval!')
+    } catch (error) {
+      console.error('Submit error:', error)
+      alert('Failed to submit business')
+    } finally {
+      setActionLoading(null)
     }
   }
 
@@ -208,6 +245,8 @@ export default function SupplierDashboard() {
                               ? 'bg-teal/10 text-teal'
                               : business.status === 'pending'
                               ? 'bg-gold/10 text-gold'
+                              : business.status === 'draft'
+                              ? 'bg-gray-100 text-gray-600'
                               : 'bg-cream text-text-secondary'
                           }`}
                         >
@@ -222,7 +261,7 @@ export default function SupplierDashboard() {
                       </div>
 
                       {/* Actions */}
-                      <div className="flex gap-3">
+                      <div className="flex flex-wrap gap-3">
                         <button
                           onClick={() => router.push(`/supplier/businesses/${business.id}/edit`)}
                           className="flex items-center gap-2 px-4 py-2 bg-gold/10 text-gold font-semibold rounded-xl hover:bg-gold hover:text-white transition-colors"
@@ -230,15 +269,48 @@ export default function SupplierDashboard() {
                           <EditIcon size={18} />
                           Edit
                         </button>
-                        <button
-                          onClick={() => router.push(`/business/${business.id}`)}
-                          className="flex items-center gap-2 px-4 py-2 bg-teal/10 text-teal font-semibold rounded-xl hover:bg-teal hover:text-white transition-colors"
-                        >
-                          👁️ View Public Page
-                        </button>
+                        
+                        {/* Show View Public Page only for active businesses */}
+                        {business.status === 'active' && (
+                          <button
+                            onClick={() => router.push(`/business/${business.id}`)}
+                            className="flex items-center gap-2 px-4 py-2 bg-teal/10 text-teal font-semibold rounded-xl hover:bg-teal hover:text-white transition-colors"
+                          >
+                            👁️ View Public Page
+                          </button>
+                        )}
+                        
+                        {/* Submit for Approval - for draft businesses */}
+                        {business.status === 'draft' && (
+                          <button
+                            onClick={() => handleSubmitForApproval(business.id)}
+                            disabled={actionLoading === business.id}
+                            className="flex items-center gap-2 px-4 py-2 bg-teal text-white font-semibold rounded-xl hover:bg-teal/90 transition-colors disabled:opacity-50"
+                          >
+                            {actionLoading === business.id ? '...' : '🚀 Submit for Approval'}
+                          </button>
+                        )}
+                        
+                        {/* Pending status indicator */}
+                        {business.status === 'pending' && (
+                          <span className="flex items-center gap-2 px-4 py-2 bg-gold/10 text-gold font-semibold rounded-xl">
+                            ⏳ Awaiting Admin Approval
+                          </span>
+                        )}
+                        
+                        {/* Verify Ownership - for active businesses */}
+                        {business.status === 'active' && (
+                          <button
+                            onClick={() => router.push(`/supplier/verification/${business.id}`)}
+                            className="flex items-center gap-2 px-4 py-2 bg-orange/10 text-orange font-semibold rounded-xl hover:bg-orange hover:text-white transition-colors"
+                          >
+                            🛡️ Verify Ownership
+                          </button>
+                        )}
+                        
                         <button
                           onClick={() => handleDelete(business.id)}
-                          className="flex items-center gap-2 px-4 py-2 bg-orange/10 text-orange font-semibold rounded-xl hover:bg-orange hover:text-white transition-colors"
+                          className="flex items-center gap-2 px-4 py-2 bg-red-50 text-red-600 font-semibold rounded-xl hover:bg-red-500 hover:text-white transition-colors"
                         >
                           <TrashIcon size={18} />
                           Delete

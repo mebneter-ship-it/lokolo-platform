@@ -25,7 +25,9 @@ router.get('/verification-requests', async (req: AuthenticatedRequest, res) => {
       Number(req.query.limit)
     );
     
-    const { requests, total } = await verificationService.getPendingVerificationRequests(
+    const status = req.query.status as string | undefined;
+    const { requests, total } = await verificationService.getVerificationRequests(
+      status,
       page,
       limit
     );

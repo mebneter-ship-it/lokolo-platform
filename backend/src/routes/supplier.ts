@@ -61,6 +61,8 @@ router.get('/businesses', async (req: AuthenticatedRequest, res) => {
     
     sendSuccess(res, { businesses: businessesWithLogos });
   } catch (error) {
+    console.error("Publish error:", error);
+    console.error("Publish error:", error);
     console.error('Error fetching businesses:', error);
     sendError(res, 'Failed to fetch businesses', 500);
   }
@@ -296,12 +298,16 @@ router.post('/businesses', upload.fields([
       
       sendCreated(res, business, 'Business created successfully');
     } catch (error) {
+    console.error("Publish error:", error);
+    console.error("Publish error:", error);
       await client.query('ROLLBACK');
       throw error;
     } finally {
       client.release();
     }
   } catch (error) {
+    console.error("Publish error:", error);
+    console.error("Publish error:", error);
     console.error('Create business error:', error);
     sendError(res, error instanceof Error ? error.message : 'Failed to create business', 500);
   }
@@ -419,12 +425,16 @@ router.patch('/businesses/:id', requireBusinessOwner, async (req: AuthenticatedR
 
       sendSuccess(res, updated, 'Business updated successfully');
     } catch (error) {
+    console.error("Publish error:", error);
+    console.error("Publish error:", error);
       await client.query('ROLLBACK');
       throw error;
     } finally {
       client.release();
     }
   } catch (error) {
+    console.error("Publish error:", error);
+    console.error("Publish error:", error);
     console.error('Update business error:', error);
     sendError(res, 'Failed to update business', 500);
   }
@@ -454,6 +464,8 @@ router.delete('/businesses/:id', requireBusinessOwner, async (req: Authenticated
 
     sendSuccess(res, null, 'Business deleted successfully');
   } catch (error) {
+    console.error("Publish error:", error);
+    console.error("Publish error:", error);
     console.error('Delete business error:', error);
     sendError(res, 'Failed to delete business', 500);
   }
@@ -532,6 +544,8 @@ router.post('/businesses/:id/logo', requireBusinessOwner, upload.single('logo'),
 
     sendSuccess(res, media, 'Logo uploaded successfully');
   } catch (error) {
+    console.error("Publish error:", error);
+    console.error("Publish error:", error);
     console.error('Upload logo error:', error);
     sendError(res, 'Failed to upload logo', 500);
   }
@@ -618,6 +632,8 @@ router.post('/businesses/:id/photos', requireBusinessOwner, upload.array('photos
 
     sendSuccess(res, { photos: uploadedMedia }, 'Photos uploaded successfully');
   } catch (error) {
+    console.error("Publish error:", error);
+    console.error("Publish error:", error);
     console.error('Upload photos error:', error);
     sendError(res, 'Failed to upload photos', 500);
   }
@@ -650,6 +666,8 @@ router.delete('/businesses/:id/media/:mediaId', requireBusinessOwner, async (req
 
     sendNoContent(res);
   } catch (error) {
+    console.error("Publish error:", error);
+    console.error("Publish error:", error);
     console.error('Delete media error:', error);
     sendError(res, 'Failed to delete media', 500);
   }
@@ -674,106 +692,9 @@ router.get('/businesses/:id', requireBusinessOwner, async (req: AuthenticatedReq
     
     sendSuccess(res, { ...business, media });
   } catch (error) {
+    console.error("Publish error:", error);
+    console.error("Publish error:", error);
     sendError(res, 'Failed to fetch business', 500);
-  }
-});
-
-/**
- * PATCH /api/v1/supplier/businesses/:id
- * Update business details including hours and category
- */
-router.patch('/businesses/:id', requireBusinessOwner, async (req: AuthenticatedRequest, res) => {
-  try {
-    const { id } = req.params;
-    const { business_hours, category, ...businessFields } = req.body;
-    
-    // Validate fields if provided
-    if (businessFields.name && !isValidBusinessName(businessFields.name)) {
-      sendError(res, 'Invalid business name', 400);
-      return;
-    }
-    
-    if (businessFields.email && !isValidEmail(businessFields.email)) {
-      sendError(res, 'Invalid email format', 400);
-      return;
-    }
-    
-    if (businessFields.latitude && businessFields.longitude && 
-        !isValidCoordinates(businessFields.latitude, businessFields.longitude)) {
-      sendError(res, 'Invalid coordinates', 400);
-      return;
-    }
-    
-    const pool = getPool();
-    
-    // Update business fields
-    const updatedBusiness = await businessService.updateBusiness(id, businessFields);
-    
-    // Update business hours if provided
-    if (business_hours) {
-      console.log('📅 Updating business hours for', id);
-      const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
-      
-      for (const day of days) {
-        if (business_hours[day]) {
-          const hours = business_hours[day];
-          
-          // Check if hours exist for this day
-          const existing = await pool.query(
-            'SELECT id FROM business_hours WHERE business_id = $1 AND day_of_week = $2',
-            [id, day]
-          );
-          
-          if (existing.rows.length > 0) {
-            // Update existing
-            await pool.query(
-              `UPDATE business_hours 
-               SET opens_at = $1, closes_at = $2, is_closed = $3, updated_at = NOW()
-               WHERE business_id = $4 AND day_of_week = $5`,
-              [
-                hours.closed ? null : hours.open,
-                hours.closed ? null : hours.close,
-                hours.closed || false,
-                id,
-                day
-              ]
-            );
-          } else {
-            // Insert new
-            await pool.query(
-              `INSERT INTO business_hours (business_id, day_of_week, opens_at, closes_at, is_closed)
-               VALUES ($1, $2, $3, $4, $5)`,
-              [
-                id,
-                day,
-                hours.closed ? null : hours.open,
-                hours.closed ? null : hours.close,
-                hours.closed || false
-              ]
-            );
-          }
-        }
-      }
-      console.log('✅ Business hours updated');
-    }
-    
-    // Update category if provided
-    if (category) {
-      console.log('🏷️ Updating category for', id, ':', category);
-      
-      // Delete existing categories and insert new one
-      await pool.query('DELETE FROM business_categories WHERE business_id = $1', [id]);
-      await pool.query(
-        'INSERT INTO business_categories (business_id, category_name) VALUES ($1, $2)',
-        [id, category]
-      );
-      console.log('✅ Category updated');
-    }
-    
-    sendSuccess(res, updatedBusiness, 'Business updated successfully');
-  } catch (error) {
-    console.error('Update business error:', error);
-    sendError(res, 'Failed to update business', 500);
   }
 });
 
@@ -787,21 +708,9 @@ router.post('/businesses/:id/publish', requireBusinessOwner, async (req: Authent
     const business = await businessService.publishBusiness(id);
     sendSuccess(res, business, 'Business published successfully');
   } catch (error) {
+    console.error("Publish error:", error);
+    console.error("Publish error:", error);
     sendError(res, 'Failed to publish business', 500);
-  }
-});
-
-/**
- * DELETE /api/v1/supplier/businesses/:id
- * Delete business
- */
-router.delete('/businesses/:id', requireBusinessOwner, async (req: AuthenticatedRequest, res) => {
-  try {
-    const { id } = req.params;
-    await businessService.deleteBusiness(id);
-    sendNoContent(res);
-  } catch (error) {
-    sendError(res, 'Failed to delete business', 500);
   }
 });
 
@@ -836,6 +745,8 @@ router.post('/businesses/:id/media/upload-url', requireBusinessOwner, async (req
       storage_path: storagePath,
     });
   } catch (error) {
+    console.error("Publish error:", error);
+    console.error("Publish error:", error);
     console.error('Generate upload URL error:', error);
     sendError(res, 'Failed to generate upload URL', 500);
   }
@@ -877,20 +788,6 @@ router.post('/businesses/:id/media', requireBusinessOwner, async (req: Authentic
 });
 
 /**
- * DELETE /api/v1/supplier/businesses/:id/media/:mediaId
- * Delete media
- */
-router.delete('/businesses/:id/media/:mediaId', requireBusinessOwner, async (req: AuthenticatedRequest, res) => {
-  try {
-    const { mediaId } = req.params;
-    await mediaService.deleteMedia(mediaId);
-    sendNoContent(res);
-  } catch (error) {
-    sendError(res, 'Failed to delete media', 500);
-  }
-});
-
-/**
  * POST /api/v1/supplier/businesses/:id/verification
  * Submit verification request
  */
@@ -907,7 +804,145 @@ router.post('/businesses/:id/verification', requireBusinessOwner, async (req: Au
     
     sendCreated(res, verificationRequest, 'Verification request submitted');
   } catch (error) {
+    console.error("Publish error:", error);
+    console.error("Publish error:", error);
     sendError(res, 'Failed to submit verification request', 500);
+  }
+});
+
+// ============================================================
+// NEW VERIFICATION DOCUMENT ROUTES (Added for document upload)
+// ============================================================
+
+/**
+ * GET /api/v1/supplier/businesses/:id/verification
+ * Get verification status and documents for a business
+ */
+router.get('/businesses/:id/verification', requireBusinessOwner, async (req: AuthenticatedRequest, res) => {
+  try {
+    const { id } = req.params;
+    
+    // Get verification request
+    const request = await verificationService.getBusinessVerificationRequest(id);
+    
+    if (!request) {
+      sendSuccess(res, null);
+      return;
+    }
+    
+    // Get documents with download URLs
+    const documents = await verificationService.getVerificationDocuments(request.id);
+    const documentsWithUrls = await Promise.all(
+      documents.map(async (doc: any) => ({
+        ...doc,
+        download_url: await verificationService.generateDocumentDownloadUrl(doc.storage_path),
+      }))
+    );
+    
+    sendSuccess(res, { ...request, documents: documentsWithUrls });
+  } catch (error: any) {
+    console.error('Error getting verification status:', error);
+    sendError(res, error.message || 'Failed to get verification status', 500);
+  }
+});
+
+/**
+ * POST /api/v1/supplier/businesses/:id/verification/documents/upload-url
+ * Get signed URL for document upload
+ */
+router.post('/businesses/:id/verification/documents/upload-url', requireBusinessOwner, async (req: AuthenticatedRequest, res) => {
+  try {
+    const { id } = req.params;
+    const { file_name, content_type, document_type } = req.body;
+    
+    if (!file_name || !content_type || !document_type) {
+      sendError(res, 'file_name, content_type, and document_type are required', 400);
+      return;
+    }
+    
+    const validDocTypes = ['id_document', 'business_registration', 'ownership_proof', 'bbbee_certificate', 'other'];
+    if (!validDocTypes.includes(document_type)) {
+      sendError(res, `Invalid document_type. Must be: ${validDocTypes.join(', ')}`, 400);
+      return;
+    }
+    
+    const validContentTypes = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'];
+    if (!validContentTypes.includes(content_type)) {
+      sendError(res, 'Invalid content_type. Must be JPEG, PNG, WebP, or PDF', 400);
+      return;
+    }
+    
+    const request = await verificationService.getBusinessVerificationRequest(id);
+    if (!request) {
+      sendError(res, 'No verification request found. Create one first.', 400);
+      return;
+    }
+    if (request.status !== 'pending') {
+      sendError(res, 'Cannot upload to a reviewed request', 400);
+      return;
+    }
+    
+    const existingDocs = await verificationService.getVerificationDocuments(request.id);
+    if (existingDocs.length >= 5) {
+      sendError(res, 'Maximum 5 documents allowed', 400);
+      return;
+    }
+    
+    const { uploadUrl, storagePath } = await verificationService.generateDocumentUploadUrl(
+      request.id, file_name, content_type, document_type
+    );
+    
+    sendSuccess(res, { upload_url: uploadUrl, storage_path: storagePath });
+  } catch (error: any) {
+    console.error('Error generating upload URL:', error);
+    sendError(res, error.message || 'Failed to generate upload URL', 500);
+  }
+});
+
+/**
+ * POST /api/v1/supplier/businesses/:id/verification/documents
+ * Save document record after upload to Cloud Storage
+ */
+router.post('/businesses/:id/verification/documents', requireBusinessOwner, async (req: AuthenticatedRequest, res) => {
+  try {
+    const { id } = req.params;
+    const { document_type, storage_path, file_name, file_size_bytes, mime_type } = req.body;
+    
+    if (!document_type || !storage_path || !file_name) {
+      sendError(res, 'document_type, storage_path, and file_name are required', 400);
+      return;
+    }
+    
+    const request = await verificationService.getBusinessVerificationRequest(id);
+    if (!request || request.status !== 'pending') {
+      sendError(res, 'No pending verification request found', 400);
+      return;
+    }
+    
+    const document = await verificationService.saveVerificationDocument({
+      verification_request_id: request.id,
+      document_type, storage_path, file_name, file_size_bytes, mime_type,
+    });
+    
+    sendCreated(res, document, 'Document saved');
+  } catch (error: any) {
+    console.error('Error saving document:', error);
+    sendError(res, error.message || 'Failed to save document', 500);
+  }
+});
+
+/**
+ * DELETE /api/v1/supplier/businesses/:id/verification/documents/:documentId
+ * Delete a verification document
+ */
+router.delete('/businesses/:id/verification/documents/:documentId', requireBusinessOwner, async (req: AuthenticatedRequest, res) => {
+  try {
+    const { id, documentId } = req.params;
+    await verificationService.deleteVerificationDocument(documentId, id, req.user!.id);
+    sendNoContent(res);
+  } catch (error: any) {
+    console.error('Error deleting document:', error);
+    sendError(res, error.message || 'Failed to delete document', 400);
   }
 });
 

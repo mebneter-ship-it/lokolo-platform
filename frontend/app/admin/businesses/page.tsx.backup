@@ -348,15 +348,13 @@ export default function AdminBusinessesPage() {
                     <p className="text-sm text-text-secondary truncate">{business.tagline || '—'}</p>
                     <p className="text-xs text-text-secondary mt-1">{business.city} • {new Date(business.created_at).toLocaleDateString()}</p>
                   </div>
-                  {business.status === 'active' && (
-                    <Link
-                      href={`/business/${business.id}`}
-                      target="_blank"
-                      className="ml-2 px-3 py-1 text-sm text-teal hover:bg-teal/10 rounded-lg"
-                    >
-                      View
-                    </Link>
-                  )}
+                  <Link
+                    href={`/business/${business.id}`}
+                    target="_blank"
+                    className="ml-2 px-3 py-1 text-sm text-teal hover:bg-teal/10 rounded-lg"
+                  >
+                    View
+                  </Link>
                 </div>
                 
                 {/* Status Badges */}
@@ -371,8 +369,8 @@ export default function AdminBusinessesPage() {
                 
                 {/* Action Buttons */}
                 <div className="flex flex-wrap gap-2">
-                  {/* APPROVAL ACTIONS - For pending or draft businesses */}
-                  {(business.status === 'pending' || business.status === 'draft') && (
+                  {/* APPROVAL ACTIONS - For pending businesses */}
+                  {business.status === 'pending' && (
                     <>
                       <button
                         onClick={() => approveBusiness(business.id)}
@@ -391,11 +389,24 @@ export default function AdminBusinessesPage() {
                     </>
                   )}
                   
-                  {/* OWNERSHIP VERIFICATION - Now handled in separate Verification Requests page */}
+                  {/* VERIFICATION ACTIONS - For active businesses with pending verification */}
                   {business.status === 'active' && business.verification_status === 'pending' && (
-                    <span className="px-3 py-2 text-sm text-orange bg-orange/10 rounded-lg font-medium">
-                      ⏳ Verification Pending
-                    </span>
+                    <>
+                      <button
+                        onClick={() => updateVerificationStatus(business.id, 'approved')}
+                        disabled={actionLoading === business.id}
+                        className="flex-1 min-w-[120px] px-3 py-2 text-sm text-teal border border-teal hover:bg-teal/10 rounded-lg disabled:opacity-50 font-medium"
+                      >
+                        {actionLoading === business.id ? '...' : '✓ Verify Ownership'}
+                      </button>
+                      <button
+                        onClick={() => updateVerificationStatus(business.id, 'rejected')}
+                        disabled={actionLoading === business.id}
+                        className="flex-1 min-w-[120px] px-3 py-2 text-sm text-orange border border-orange hover:bg-orange/10 rounded-lg disabled:opacity-50 font-medium"
+                      >
+                        {actionLoading === business.id ? '...' : '✗ Reject Ownership'}
+                      </button>
+                    </>
                   )}
                   
                   {/* SUSPEND/ACTIVATE - For active or suspended businesses */}
