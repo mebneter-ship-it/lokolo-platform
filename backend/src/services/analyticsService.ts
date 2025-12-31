@@ -82,6 +82,7 @@ export const trackBatchEvents = async (events: TrackEventParams[]): Promise<void
 
 /**
  * Get business stats (for supplier dashboard)
+ * ONLY counts consumer interactions (role = 'consumer')
  */
 export const getBusinessStats = async (
   businessId: string,
@@ -96,34 +97,46 @@ export const getBusinessStats = async (
   const startDate = new Date();
   startDate.setDate(startDate.getDate() - days);
   
-  // Total views
+  // Total views (consumers only)
   const viewsResult = await pool.query(
-    `SELECT COUNT(*) FROM analytics_events 
-     WHERE business_id = $1 AND event_type = 'page_view' AND created_at >= $2`,
+    `SELECT COUNT(*) FROM analytics_events ae
+     JOIN users u ON ae.user_id = u.id
+     WHERE ae.business_id = $1 
+     AND ae.event_type = 'page_view' 
+     AND ae.created_at >= $2
+     AND u.role = 'consumer'`,
     [businessId, startDate]
   );
   
-  // Total contact clicks (all types)
+  // Total contact clicks (consumers only)
   const contactsResult = await pool.query(
-    `SELECT COUNT(*) FROM analytics_events 
-     WHERE business_id = $1 
-     AND event_type IN ('contact_click_phone', 'contact_click_whatsapp', 'contact_click_website', 'contact_click_email')
-     AND created_at >= $2`,
+    `SELECT COUNT(*) FROM analytics_events ae
+     JOIN users u ON ae.user_id = u.id
+     WHERE ae.business_id = $1 
+     AND ae.event_type IN ('contact_click_phone', 'contact_click_whatsapp', 'contact_click_website', 'contact_click_email')
+     AND ae.created_at >= $2
+     AND u.role = 'consumer'`,
     [businessId, startDate]
   );
   
-  // Total favorites (current count from favorites table)
+  // Total favorites (consumers only)
   const favoritesResult = await pool.query(
-    `SELECT COUNT(*) FROM favorites WHERE business_id = $1`,
+    `SELECT COUNT(*) FROM favorites f
+     JOIN users u ON f.user_id = u.id
+     WHERE f.business_id = $1 AND u.role = 'consumer'`,
     [businessId]
   );
   
-  // Views by day
+  // Views by day (consumers only)
   const viewsByDayResult = await pool.query(
-    `SELECT DATE(created_at) as date, COUNT(*) as count
-     FROM analytics_events
-     WHERE business_id = $1 AND event_type = 'page_view' AND created_at >= $2
-     GROUP BY DATE(created_at)
+    `SELECT DATE(ae.created_at) as date, COUNT(*) as count
+     FROM analytics_events ae
+     JOIN users u ON ae.user_id = u.id
+     WHERE ae.business_id = $1 
+     AND ae.event_type = 'page_view' 
+     AND ae.created_at >= $2
+     AND u.role = 'consumer'
+     GROUP BY DATE(ae.created_at)
      ORDER BY date`,
     [businessId, startDate]
   );
@@ -141,6 +154,7 @@ export const getBusinessStats = async (
 
 /**
  * Get detailed business analytics (for supplier)
+ * ONLY counts consumer interactions (role = 'consumer')
  */
 export const getBusinessAnalytics = async (
   businessId: string,
@@ -164,12 +178,13 @@ export const getBusinessAnalytics = async (
   const startDate = new Date();
   startDate.setDate(startDate.getDate() - days);
   
-  // Get all event counts by type
+  // Get all event counts by type (consumers only)
   const summaryResult = await pool.query(
-    `SELECT event_type, COUNT(*) as count
-     FROM analytics_events
-     WHERE business_id = $1 AND created_at >= $2
-     GROUP BY event_type`,
+    `SELECT ae.event_type, COUNT(*) as count
+     FROM analytics_events ae
+     JOIN users u ON ae.user_id = u.id
+     WHERE ae.business_id = $1 AND ae.created_at >= $2 AND u.role = 'consumer'
+     GROUP BY ae.event_type`,
     [businessId, startDate]
   );
   
@@ -178,15 +193,16 @@ export const getBusinessAnalytics = async (
     counts[row.event_type] = parseInt(row.count);
   }
   
-  // Daily breakdown
+  // Daily breakdown (consumers only)
   const dailyResult = await pool.query(
     `SELECT 
-       DATE(created_at) as date,
-       COUNT(*) FILTER (WHERE event_type = 'page_view') as views,
-       COUNT(*) FILTER (WHERE event_type IN ('contact_click_phone', 'contact_click_whatsapp', 'contact_click_website', 'contact_click_email')) as contacts
-     FROM analytics_events
-     WHERE business_id = $1 AND created_at >= $2
-     GROUP BY DATE(created_at)
+       DATE(ae.created_at) as date,
+       COUNT(*) FILTER (WHERE ae.event_type = 'page_view') as views,
+       COUNT(*) FILTER (WHERE ae.event_type IN ('contact_click_phone', 'contact_click_whatsapp', 'contact_click_website', 'contact_click_email')) as contacts
+     FROM analytics_events ae
+     JOIN users u ON ae.user_id = u.id
+     WHERE ae.business_id = $1 AND ae.created_at >= $2 AND u.role = 'consumer'
+     GROUP BY DATE(ae.created_at)
      ORDER BY date`,
     [businessId, startDate]
   );
@@ -217,6 +233,7 @@ export const getBusinessAnalytics = async (
 
 /**
  * Get platform-wide stats (for admin)
+ * ONLY counts consumer interactions (role = 'consumer')
  */
 export const getPlatformAnalytics = async (
   days: number = 30
@@ -231,44 +248,57 @@ export const getPlatformAnalytics = async (
   const startDate = new Date();
   startDate.setDate(startDate.getDate() - days);
   
-  // Total events
+  // Total events (consumers only)
   const totalResult = await pool.query(
-    `SELECT COUNT(*) FROM analytics_events WHERE created_at >= $1`,
+    `SELECT COUNT(*) FROM analytics_events ae
+     JOIN users u ON ae.user_id = u.id
+     WHERE ae.created_at >= $1 AND u.role = 'consumer'`,
     [startDate]
   );
   
-  // Total page views
+  // Total page views (consumers only)
   const viewsResult = await pool.query(
-    `SELECT COUNT(*) FROM analytics_events WHERE event_type = 'page_view' AND created_at >= $1`,
+    `SELECT COUNT(*) FROM analytics_events ae
+     JOIN users u ON ae.user_id = u.id
+     WHERE ae.event_type = 'page_view' 
+     AND ae.created_at >= $1
+     AND u.role = 'consumer'`,
     [startDate]
   );
   
-  // Total contact clicks
+  // Total contact clicks (consumers only)
   const contactsResult = await pool.query(
-    `SELECT COUNT(*) FROM analytics_events 
-     WHERE event_type IN ('contact_click_phone', 'contact_click_whatsapp', 'contact_click_website', 'contact_click_email')
-     AND created_at >= $1`,
+    `SELECT COUNT(*) FROM analytics_events ae
+     JOIN users u ON ae.user_id = u.id
+     WHERE ae.event_type IN ('contact_click_phone', 'contact_click_whatsapp', 'contact_click_website', 'contact_click_email')
+     AND ae.created_at >= $1
+     AND u.role = 'consumer'`,
     [startDate]
   );
   
-  // Top businesses by views
+  // Top businesses by views (consumers only)
   const topResult = await pool.query(
     `SELECT ae.business_id, b.name as business_name, COUNT(*) as views
      FROM analytics_events ae
      JOIN businesses b ON b.id = ae.business_id
-     WHERE ae.event_type = 'page_view' AND ae.created_at >= $1
+     JOIN users u ON ae.user_id = u.id
+     WHERE ae.event_type = 'page_view' 
+     AND ae.created_at >= $1
+     AND u.role = 'consumer'
      GROUP BY ae.business_id, b.name
      ORDER BY views DESC
      LIMIT 10`,
     [startDate]
   );
   
-  // Events by day
+  // Events by day (consumers only)
   const dailyResult = await pool.query(
-    `SELECT DATE(created_at) as date, COUNT(*) as count
-     FROM analytics_events
-     WHERE created_at >= $1
-     GROUP BY DATE(created_at)
+    `SELECT DATE(ae.created_at) as date, COUNT(*) as count
+     FROM analytics_events ae
+     JOIN users u ON ae.user_id = u.id
+     WHERE ae.created_at >= $1
+     AND u.role = 'consumer'
+     GROUP BY DATE(ae.created_at)
      ORDER BY date`,
     [startDate]
   );
