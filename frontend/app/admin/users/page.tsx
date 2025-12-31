@@ -174,7 +174,8 @@ export default function AdminUsersPage() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
             </svg>
           </Link>
-          <h1 className="text-2xl font-bold text-white">Manage Users</h1>
+          <img src="/images/lokolo-logo.png" alt="Lokolo" className="w-10 h-10 rounded-lg" />
+          <h1 className="text-xl font-bold text-white">Manage Users</h1>
         </div>
       </header>
 

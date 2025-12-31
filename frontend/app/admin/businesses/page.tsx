@@ -273,6 +273,7 @@ export default function AdminBusinessesPage() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
             </svg>
           </Link>
+          <img src="/images/lokolo-logo.png" alt="Lokolo" className="w-10 h-10 rounded-lg" />
           <h1 className="text-xl font-bold text-white">Manage Businesses</h1>
         </div>
       </header>

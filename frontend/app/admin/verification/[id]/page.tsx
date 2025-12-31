@@ -90,7 +90,9 @@ export default function AdminVerificationReviewPage() {
           <Link href="/admin/verification" className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center text-white">
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
           </Link>
-          <div><h1 className="text-xl font-bold text-white">Review</h1><p className="text-sm text-white/80">{request.business_name}</p></div>
+          <img src="/images/lokolo-logo.png" alt="Lokolo" className="w-10 h-10 rounded-lg" />
+          <div><h1 className="text-xl font-bold text-white">Review</h1>
+<p className="text-sm text-white/80">{request.business_name}</p></div>
         </div>
       </header>
 

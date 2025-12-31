@@ -469,6 +469,7 @@ export default function BusinessDetailPage() {
                 onClick={() => openLightbox(business.logo_url!)}
               />
             )}
+            <img src="/images/lokolo-logo.png" alt="Lokolo" className="w-8 h-8 rounded-lg" />
             <h1 className="text-lg font-bold text-white truncate">
               {business.name}
             </h1>

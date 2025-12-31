@@ -257,6 +257,7 @@ export default function SupplierVerificationPage() {
             </svg>
           </Link>
           <div>
+            <img src="/images/lokolo-logo.png" alt="Lokolo" className="w-10 h-10 rounded-lg" />
             <h1 className="text-xl font-bold text-white">Ownership Verification</h1>
             <p className="text-white/80 text-sm">{business?.name}</p>
           </div>

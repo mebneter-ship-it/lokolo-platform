@@ -123,6 +123,7 @@ export default function FavoritesPage() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
             </svg>
           </button>
+           <img src="/images/lokolo-logo.png" alt="Lokolo" className="w-10 h-10 rounded-lg" />
           <h1 className="text-xl font-bold text-white">My Favorites</h1>
         </div>
       </header>
