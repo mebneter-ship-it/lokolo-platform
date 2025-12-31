@@ -1,5 +1,7 @@
 import { getPool } from '../config/database';
 import { Favorite } from '../models/types';
+import * as mediaService from './mediaService';
+import * as ratingService from './ratingService';
 
 /**
  * Add business to user's favorites
@@ -52,7 +54,7 @@ export const isFavorited = async (userId: string, businessId: string): Promise<b
 };
 
 /**
- * Get user's favorite businesses
+ * Get user's favorite businesses with logo URLs and ratings
  */
 export const getUserFavorites = async (userId: string, page: number = 1, limit: number = 20) => {
   const pool = getPool();
@@ -76,8 +78,40 @@ export const getUserFavorites = async (userId: string, page: number = 1, limit: 
     [userId]
   );
   
+  // Fetch logo URLs and ratings for all favorites
+  const businessIds = result.rows.map((b: any) => b.id);
+  const ratingsMap = businessIds.length > 0 
+    ? await ratingService.getBusinessesRatings(businessIds)
+    : new Map();
+  
+  const favoritesWithLogos = await Promise.all(
+    result.rows.map(async (business: any) => {
+      try {
+        const media = await mediaService.getBusinessMedia(business.id);
+        const logo = media.find((m: any) => m.media_type === 'logo');
+        const logoUrl = logo ? await mediaService.generateDownloadUrl(logo.storage_path) : null;
+        const ratingData = ratingsMap.get(business.id);
+        
+        return {
+          ...business,
+          logo_url: logoUrl,
+          rating: ratingData?.average_rating || 0,
+          total_ratings: ratingData?.total_ratings || 0,
+        };
+      } catch (error) {
+        console.error(`Error fetching logo for ${business.name}:`, error);
+        return {
+          ...business,
+          logo_url: null,
+          rating: 0,
+          total_ratings: 0,
+        };
+      }
+    })
+  );
+  
   return {
-    favorites: result.rows,
+    favorites: favoritesWithLogos,
     total: parseInt(countResult.rows[0].count),
   };
 };
