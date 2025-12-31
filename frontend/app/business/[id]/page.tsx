@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { useAuth } from '@/hooks/useAuth'
+import { trackPageView, trackContactClick, trackFavorite, trackShare } from '@/lib/analytics'
 
 interface BusinessHour {
   day_of_week: string
@@ -78,7 +79,14 @@ export default function BusinessDetailPage() {
     if (businessId) {
       fetchBusinessDetail()
     }
-  }, [businessId])
+  }, [businessId, user])
+
+  // Track page view when business is loaded
+  useEffect(() => {
+    if (business?.id) {
+      trackPageView(business.id, 'business_detail')
+    }
+  }, [business?.id])
 
   // Fetch user role to check if consumer
   useEffect(() => {
@@ -109,8 +117,21 @@ export default function BusinessDetailPage() {
     try {
       setLoading(true)
       
+      // Build headers - include auth token if logged in
+      const headers: Record<string, string> = {}
+      if (user) {
+        try {
+          const token = await user.getIdToken()
+          headers['Authorization'] = `Bearer ${token}`
+        } catch (e) {
+          console.log('Could not get auth token')
+        }
+      }
+      
       // Fetch directly from API to get all data
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/businesses/${businessId}`)
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/businesses/${businessId}`, {
+        headers,
+      })
       if (!response.ok) throw new Error('Failed to fetch business')
       
       const result = await response.json()
@@ -238,6 +259,7 @@ export default function BusinessDetailPage() {
           headers: { 'Authorization': `Bearer ${token}` },
         })
         setIsFavorited(false)
+        trackFavorite(businessId, 'remove')  // Track favorite remove
       } else {
         await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/me/favorites/${businessId}`, {
           method: 'POST',
@@ -246,6 +268,7 @@ export default function BusinessDetailPage() {
           },
         })
         setIsFavorited(true)
+        trackFavorite(businessId, 'add')  // Track favorite add
       }
     } catch (error) {
       console.error('Error toggling favorite:', error)
@@ -256,6 +279,7 @@ export default function BusinessDetailPage() {
 
   const handleCall = () => {
     if (business?.contacts?.phone) {
+      trackContactClick(businessId, 'phone')  // Track phone click
       window.location.href = `tel:${business.contacts.phone}`
     }
   }
@@ -263,6 +287,7 @@ export default function BusinessDetailPage() {
   const handleWhatsApp = () => {
     const number = business?.contacts?.whatsapp || business?.contacts?.phone
     if (number) {
+      trackContactClick(businessId, 'whatsapp')  // Track WhatsApp click
       const cleaned = number.replace(/\D/g, '')
       window.open(`https://wa.me/${cleaned}`, '_blank')
     }
@@ -270,12 +295,14 @@ export default function BusinessDetailPage() {
 
   const handleEmail = () => {
     if (business?.contacts?.email) {
+      trackContactClick(businessId, 'email')  // Track email click
       window.location.href = `mailto:${business.contacts.email}`
     }
   }
 
   const handleWebsite = () => {
     if (business?.contacts?.website_url) {
+      trackContactClick(businessId, 'website')  // Track website click
       let url = business.contacts.website_url
       if (!url.startsWith('http')) url = 'https://' + url
       window.open(url, '_blank')
@@ -284,12 +311,14 @@ export default function BusinessDetailPage() {
 
   const handleDirections = () => {
     if (business?.location) {
+      trackContactClick(businessId, 'website')  // Track as website (directions)
       const { latitude, longitude } = business.location
       window.open(`https://www.google.com/maps/dir/?api=1&destination=${latitude},${longitude}`, '_blank')
     }
   }
 
   const handleShare = async () => {
+    trackShare(businessId, 'native')  // Track share click
     if (navigator.share) {
       try {
         await navigator.share({
@@ -649,7 +678,7 @@ export default function BusinessDetailPage() {
           
           {/* Open Status */}
           <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium ${openStatus.className}`}>
-                        <svg width={14} height={14} viewBox="0 0 24 24" fill="none">
+            <svg width={14} height={14} viewBox="0 0 24 24" fill="none">
               <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2" fill="currentColor" fillOpacity="0.1"/>
               <path d="M12 6V12L16 14" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
             </svg>
@@ -668,7 +697,7 @@ export default function BusinessDetailPage() {
         {business.location?.address_text && (
           <div className="bg-white rounded-2xl shadow-md p-6 border border-cream mb-4">
             <h2 className="text-lg font-bold text-text-primary mb-3 flex items-center gap-2">
-                            <svg width={20} height={20} viewBox="0 0 24 24" fill="none" className="text-orange">
+              <svg width={20} height={20} viewBox="0 0 24 24" fill="none" className="text-orange">
                 <path d="M21 10C21 17 12 23 12 23C12 23 3 17 3 10C3 7.61305 3.94821 5.32387 5.63604 3.63604C7.32387 1.94821 9.61305 1 12 1C14.3869 1 16.6761 1.94821 18.364 3.63604C20.0518 5.32387 21 7.61305 21 10Z" stroke="#B85C1A" strokeWidth="2" fill="#B85C1A"/>
                 <circle cx="12" cy="10" r="3" fill="#156B60"/>
               </svg>
@@ -691,7 +720,7 @@ export default function BusinessDetailPage() {
         {business.business_hours && business.business_hours.length > 0 && (
           <div className="bg-white rounded-2xl shadow-md p-6 border border-cream mb-4">
             <h2 className="text-lg font-bold text-text-primary mb-4 flex items-center gap-2">
-                            <svg width={20} height={20} viewBox="0 0 24 24" fill="none" className="text-gold">
+              <svg width={20} height={20} viewBox="0 0 24 24" fill="none" className="text-gold">
                 <circle cx="12" cy="12" r="10" stroke="#F5A623" strokeWidth="2" fill="#F5A623" fillOpacity="0.1"/>
                 <path d="M12 6V12L16 14" stroke="#156B60" strokeWidth="2" strokeLinecap="round"/>
               </svg>

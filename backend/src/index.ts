@@ -9,6 +9,8 @@ import { initializeStorage } from './config/storage';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler';
 import { logger } from './utils/logger';
 import routes from './routes';
+import analyticsRoutes from './routes/analytics';
+
 
 dotenv.config();
 
@@ -65,6 +67,8 @@ app.get('/', (req, res) => {
 // ============================================================
 
 app.use('/api/v1', routes);
+app.use('/api/v1/analytics', analyticsRoutes);
+
 
 // ============================================================
 // Error Handling

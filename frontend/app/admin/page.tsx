@@ -294,7 +294,7 @@ export default function AdminDashboard() {
             </div>
           </Link>
 
-          <div className="bg-white rounded-xl shadow-sm p-4 opacity-50">
+          <Link href="/admin/analytics" className="bg-white rounded-xl shadow-sm p-4 hover:shadow-md transition-shadow">
             <div className="flex items-center gap-4">
               <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center">
                 <svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -303,10 +303,10 @@ export default function AdminDashboard() {
               </div>
               <div>
                 <h3 className="font-bold text-text-primary">Analytics</h3>
-                <p className="text-sm text-text-secondary">Coming soon</p>
+                <p className="text-sm text-text-secondary">Track engagement</p>
               </div>
             </div>
-          </div>
+          </Link>
         </div>
 
         {/* Recent Activity */}

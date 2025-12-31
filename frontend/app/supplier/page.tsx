@@ -139,7 +139,10 @@ export default function SupplierDashboard() {
   if (loading) {
     return (
       <div className="min-h-screen bg-cream flex items-center justify-center">
-        <div className="text-text-secondary">Loading...</div>
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-gold border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-text-secondary">Loading your businesses...</p>
+        </div>
       </div>
     )
   }
@@ -147,36 +150,32 @@ export default function SupplierDashboard() {
   return (
     <div className="min-h-screen bg-cream">
       {/* Header */}
-      <header className="bg-gradient-to-r from-orange to-gold shadow-md sticky top-0 z-10">
-        <div className="max-w-6xl mx-auto px-4 py-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <Image
-                src="/images/lokolo-logo.png"
-                alt="Lokolo"
-                width={60}
-                height={60}
-                className="rounded-lg"
-              />
-              <div>
-                <h1 className="text-xl font-bold text-white">Supplier Dashboard</h1>
-                <p className="text-sm text-white/90">Manage your businesses</p>
-              </div>
-            </div>
+      <header className="sticky top-0 z-50 bg-gradient-to-r from-orange to-gold shadow-md">
+        <div className="flex items-center justify-between px-4 py-4">
+          <div className="flex items-center gap-4">
             <button
-              onClick={() => router.push('/profile')}
-              className="w-10 h-10 rounded-full bg-gold flex items-center justify-center hover:bg-[#E69515] active:scale-95 transition-all"
-              aria-label="Profile"
+              onClick={() => router.push('/')}
+              className="flex items-center justify-center w-10 h-10 rounded-full bg-white/20 text-white hover:bg-white/30 transition-colors"
             >
-              <ProfileIcon size={24} />
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              </svg>
             </button>
+            <h1 className="text-2xl font-bold text-white">Supplier Dashboard</h1>
           </div>
+          <button
+            onClick={() => router.push('/profile')}
+            className="flex items-center justify-center w-10 h-10 rounded-full bg-white/20 text-white hover:bg-white/30 transition-colors"
+          >
+            <ProfileIcon size={24} />
+          </button>
         </div>
       </header>
 
-      <div className="max-w-6xl mx-auto px-4 py-8">
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+      {/* Content */}
+      <div className="p-4 max-w-4xl mx-auto">
+        {/* Stats Overview */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
           <div className="bg-white rounded-2xl shadow-md p-6">
             <div className="flex items-center gap-4">
               <div className="w-12 h-12 bg-gold/10 rounded-xl flex items-center justify-center">
@@ -309,12 +308,6 @@ export default function SupplierDashboard() {
                           </span>
                         </div>
 
-                        <div className="flex items-center gap-2 text-sm text-text-secondary mb-2">
-                          <span>{business.category}</span>
-                          <span>•</span>
-                          <span>{business.city}</span>
-                        </div>
-
                         {/* Analytics Stats for Active Businesses */}
                         {business.status === 'active' && stats && (
                           <div className="flex items-center gap-4 mb-3 text-sm bg-cream/50 rounded-lg px-3 py-2">
@@ -336,61 +329,75 @@ export default function SupplierDashboard() {
                           </div>
                         )}
 
-                        {/* Actions */}
-                        <div className="flex flex-wrap gap-3">
-                          <button
-                            onClick={() => router.push(`/supplier/businesses/${business.id}/edit`)}
-                            className="flex items-center gap-2 px-4 py-2 bg-gold/10 text-gold font-semibold rounded-xl hover:bg-gold hover:text-white transition-colors"
-                          >
-                            <EditIcon size={18} />
-                            Edit
-                          </button>
-                          
-                          {/* Show View Public Page only for active businesses */}
-                          {business.status === 'active' && (
-                            <button
-                              onClick={() => router.push(`/business/${business.id}`)}
-                              className="flex items-center gap-2 px-4 py-2 bg-teal/10 text-teal font-semibold rounded-xl hover:bg-teal hover:text-white transition-colors"
-                            >
-                              👁️ View Public Page
-                            </button>
-                          )}
-                          
-                          {/* Submit for Approval - for draft businesses */}
+                        {/* Verification Badge */}
+                        {business.verification_status === 'approved' && (
+                          <div className="flex items-center gap-1 text-teal text-sm mb-2">
+                            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                            </svg>
+                            <span className="font-medium">Verified Owner</span>
+                          </div>
+                        )}
+
+                        {/* Actions based on status */}
+                        <div className="flex flex-wrap gap-2 mt-3">
+                          {/* DRAFT: Show Submit for Approval */}
                           {business.status === 'draft' && (
                             <button
                               onClick={() => handleSubmitForApproval(business.id)}
                               disabled={actionLoading === business.id}
-                              className="flex items-center gap-2 px-4 py-2 bg-teal text-white font-semibold rounded-xl hover:bg-teal/90 transition-colors disabled:opacity-50"
+                              className="px-4 py-2 bg-gold text-text-primary font-semibold rounded-lg text-sm hover:bg-[#E69515] disabled:opacity-50 transition-colors"
                             >
                               {actionLoading === business.id ? '...' : '🚀 Submit for Approval'}
                             </button>
                           )}
-                          
-                          {/* Pending status indicator */}
+
+                          {/* PENDING: Show awaiting label */}
                           {business.status === 'pending' && (
-                            <span className="flex items-center gap-2 px-4 py-2 bg-gold/10 text-gold font-semibold rounded-xl">
+                            <span className="px-4 py-2 bg-gold/10 text-gold font-semibold rounded-lg text-sm">
                               ⏳ Awaiting Admin Approval
                             </span>
                           )}
-                          
-                          {/* Verify Ownership - for active businesses */}
+
+                          {/* ACTIVE: Show View Public Page + Verify buttons */}
                           {business.status === 'active' && (
+                            <>
+                              <button
+                                onClick={() => router.push(`/business/${business.id}`)}
+                                className="px-4 py-2 bg-teal text-white font-semibold rounded-lg text-sm hover:bg-[#0E5A50] transition-colors"
+                              >
+                                👁️ View Public Page
+                              </button>
+                              {business.verification_status !== 'approved' && (
+                                <button
+                                  onClick={() => router.push(`/supplier/verification/${business.id}`)}
+                                  className="px-4 py-2 bg-orange text-white font-semibold rounded-lg text-sm hover:bg-[#8F4814] transition-colors"
+                                >
+                                  🛡️ Verify Ownership
+                                </button>
+                              )}
+                            </>
+                          )}
+
+                          {/* Always show Edit */}
+                          <button
+                            onClick={() => router.push(`/supplier/business/${business.id}/edit`)}
+                            className="flex items-center gap-2 px-4 py-2 bg-cream text-text-primary font-semibold rounded-lg text-sm hover:bg-gray-200 transition-colors"
+                          >
+                            <EditIcon size={16} />
+                            Edit
+                          </button>
+
+                          {/* Delete only for draft */}
+                          {business.status === 'draft' && (
                             <button
-                              onClick={() => router.push(`/supplier/verification/${business.id}`)}
-                              className="flex items-center gap-2 px-4 py-2 bg-orange/10 text-orange font-semibold rounded-xl hover:bg-orange hover:text-white transition-colors"
+                              onClick={() => handleDelete(business.id)}
+                              className="flex items-center gap-2 px-4 py-2 bg-red-50 text-red-600 font-semibold rounded-lg text-sm hover:bg-red-100 transition-colors"
                             >
-                              🛡️ Verify Ownership
+                              <TrashIcon size={16} />
+                              Delete
                             </button>
                           )}
-                          
-                          <button
-                            onClick={() => handleDelete(business.id)}
-                            className="flex items-center gap-2 px-4 py-2 bg-red-50 text-red-600 font-semibold rounded-xl hover:bg-red-500 hover:text-white transition-colors"
-                          >
-                            <TrashIcon size={18} />
-                            Delete
-                          </button>
                         </div>
                       </div>
                     </div>
