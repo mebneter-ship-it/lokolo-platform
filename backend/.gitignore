@@ -1,15 +1,13 @@
 # Dependencies
 node_modules/
-package-lock.json
 
 # Environment variables
 .env
 .env.local
 .env.*.local
 
-# Firebase service account key
+# Firebase service account key (sensitive)
 firebase-service-account.json
-*.json
 
 # Build output
 dist/
@@ -37,3 +35,9 @@ coverage/
 # Temporary files
 tmp/
 temp/
+
+# Cloud SQL proxy binary
+cloud-sql-proxy
+
+# Zip files
+*.zip
