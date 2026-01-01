@@ -1,28 +1,38 @@
-# Use Node.js LTS
-FROM node:18-alpine
-
-# Set working directory
+# -------- Builder stage (has dev deps + types) --------
+FROM node:18-alpine AS builder
 WORKDIR /app
 
-# Copy package files
+# Install all deps (including devDependencies)
 COPY backend/package*.json ./
+RUN npm ci
 
-# Install dependencies
-RUN npm ci --only=production
-
-# Copy source code
-COPY backend/src ./src
+# Copy source + tsconfig and compile
 COPY backend/tsconfig.json ./
+COPY backend/src ./src
 
-# Build TypeScript
-RUN npm install typescript -g && tsc
+# Keep your original approach: install TS globally then compile
+RUN npm install -g typescript && tsc
 
-# Expose port
-EXPOSE 8080
+# -------- Runtime stage (production deps only) --------
+FROM node:18-alpine
+WORKDIR /app
 
-# Set environment variable for Cloud Run
-ENV PORT=8080
+# Install only production dependencies
+COPY backend/package*.json ./
+RUN npm ci --omit=dev
+
+# Copy compiled output (wherever tsc put it) + any needed runtime files
+# We copy the whole /app from builder, then remove the builder's node_modules
+COPY --from=builder /app/ /app/
+RUN rm -rf node_modules && npm ci --omit=dev
+
+# Optional, but harmless
 ENV NODE_ENV=production
 
-# Start the server
-CMD ["node", "dist/index.js"]
+# Start: prefer common build outputs; fall back to npm start if needed.
+CMD ["sh", "-c", "\
+  if [ -f dist/index.js ]; then node dist/index.js; \
+  elif [ -f build/index.js ]; then node build/index.js; \
+  elif [ -f src/index.js ]; then node src/index.js; \
+  else npm start; fi \
+"]
