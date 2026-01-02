@@ -3,17 +3,28 @@ import { Pool, PoolConfig } from 'pg';
 let pool: Pool | null = null;
 
 const getPoolConfig = (): PoolConfig => {
-  return {
-    host: process.env.DB_HOST || 'localhost',
-    port: parseInt(process.env.DB_PORT || '5432'),
-    database: process.env.DB_NAME || 'lokolo',
+  const host = process.env.DB_HOST || 'localhost';
+  const isCloudSqlSocket = host.startsWith('/cloudsql/');
+  
+  const config: PoolConfig = {
+    host: host,
+    port: isCloudSqlSocket ? undefined : parseInt(process.env.DB_PORT || '5432'),
+    database: process.env.DB_NAME || 'lokolo_dev',
     user: process.env.DB_USER || 'postgres',
     password: process.env.DB_PASSWORD,
     max: 20,
     idleTimeoutMillis: 30000,
     connectionTimeoutMillis: 10000,
-    ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
   };
+
+  // Only use SSL for non-socket TCP connections in production
+  if (process.env.NODE_ENV === 'production' && !isCloudSqlSocket) {
+    config.ssl = { rejectUnauthorized: false };
+  }
+
+  console.log(`Database config: host=${host}, db=${config.database}, user=${config.user}, isSocket=${isCloudSqlSocket}`);
+  
+  return config;
 };
 
 export const initializeDatabase = (): Pool => {
@@ -31,7 +42,6 @@ export const initializeDatabase = (): Pool => {
 
     pool.on('error', (err) => {
       console.error('❌ Unexpected database error:', err);
-      process.exit(-1);
     });
 
     return pool;
