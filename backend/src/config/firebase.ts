@@ -9,24 +9,46 @@ export const initializeFirebase = (): admin.app.App => {
     return firebaseApp;
   }
 
+  console.log('[2026-01-01T16:52:16.238Z] INFO: Initializing Firebase Admin SDK...');
+
   try {
-    const serviceAccountPath = process.env.FIREBASE_SERVICE_ACCOUNT_KEY_PATH;
-    
-    if (!serviceAccountPath) {
-      throw new Error('FIREBASE_SERVICE_ACCOUNT_KEY_PATH environment variable is not set');
-    }
+    let credential: admin.credential.Credential;
 
-    const absolutePath = path.resolve(serviceAccountPath);
-    
-    if (!fs.existsSync(absolutePath)) {
-      throw new Error(`Firebase service account key not found at: ${absolutePath}`);
+    // Option 1: JSON string in environment variable (Cloud Run with Secret Manager)
+    if (process.env.FIREBASE_SERVICE_ACCOUNT_KEY) {
+      console.log('Using FIREBASE_SERVICE_ACCOUNT_KEY (JSON string)');
+      const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY);
+      credential = admin.credential.cert(serviceAccount);
     }
+    // Option 2: File path (local development)
+    else if (process.env.FIREBASE_SERVICE_ACCOUNT_KEY_PATH) {
+      console.log('Using FIREBASE_SERVICE_ACCOUNT_KEY_PATH (file)');
+      const absolutePath = path.resolve(process.env.FIREBASE_SERVICE_ACCOUNT_KEY_PATH);
+      
+      if (!fs.existsSync(absolutePath)) {
+        throw new Error(`Firebase service account key not found at: ${absolutePath}`);
+      }
 
-    const serviceAccount = JSON.parse(fs.readFileSync(absolutePath, 'utf8'));
+      const serviceAccount = JSON.parse(fs.readFileSync(absolutePath, 'utf8'));
+      credential = admin.credential.cert(serviceAccount);
+    }
+    // Option 3: Google Application Default Credentials (Cloud Run default)
+    else if (process.env.GOOGLE_APPLICATION_CREDENTIALS || process.env.K_SERVICE) {
+      console.log('Using Application Default Credentials');
+      credential = admin.credential.applicationDefault();
+    }
+    else {
+      throw new Error(
+        'Firebase credentials not configured. Set one of: ' +
+        'FIREBASE_SERVICE_ACCOUNT_KEY (JSON string), ' +
+        'FIREBASE_SERVICE_ACCOUNT_KEY_PATH (file path), ' +
+        'or run in Google Cloud environment'
+      );
+    }
 
     firebaseApp = admin.initializeApp({
-      credential: admin.credential.cert(serviceAccount),
-      projectId: process.env.FIREBASE_PROJECT_ID,
+      credential,
+      projectId: process.env.FIREBASE_PROJECT_ID || 'lokolo-platform',
     });
 
     console.log('✅ Firebase Admin SDK initialized successfully');
