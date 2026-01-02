@@ -17,7 +17,7 @@ interface FilterState {
 export default function Home() {
   const router = useRouter()
   const { user } = useAuth()
-  const [businesses, setBusinesses] = useState([])
+  const [businesses, setBusinesses] = useState<any[]>([])
   const [selectedBusiness, setSelectedBusiness] = useState<string | null>(null)
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null)
   const [loading, setLoading] = useState(true)

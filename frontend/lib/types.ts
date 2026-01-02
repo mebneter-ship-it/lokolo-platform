@@ -9,8 +9,11 @@ export interface Business {
   is_verified: boolean;
   is_featured: boolean;
   rating?: number;
+  total_ratings?: number;
   logo_url?: string;
   distance?: number;
+  latitude?: number;
+  longitude?: number;
   location: {
     latitude: number;
     longitude: number;

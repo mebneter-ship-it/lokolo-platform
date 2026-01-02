@@ -873,7 +873,7 @@ export default function EditBusinessPage() {
           <div className="space-y-4">
             {['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'].map((day) => {
               const dayName = day.charAt(0).toUpperCase() + day.slice(1)
-              const hours = formData.business_hours[day]
+              const hours = formData.business_hours[day as keyof typeof formData.business_hours]
               
               return (
                 <div key={day} className="flex items-center gap-4">
@@ -884,7 +884,7 @@ export default function EditBusinessPage() {
                         checked={!hours.closed}
                         onChange={(e) => {
                           const newHours = { ...formData.business_hours }
-                          newHours[day] = { ...hours, closed: !e.target.checked }
+                          newHours[day as keyof typeof formData.business_hours] = { ...hours, closed: !e.target.checked }
                           handleChange('business_hours', newHours)
                         }}
                         className="w-4 h-4 text-gold focus:ring-gold border-cream rounded"
@@ -902,7 +902,7 @@ export default function EditBusinessPage() {
                         value={hours.open}
                         onChange={(e) => {
                           const newHours = { ...formData.business_hours }
-                          newHours[day] = { ...hours, open: e.target.value }
+                          newHours[day as keyof typeof formData.business_hours] = { ...hours, open: e.target.value }
                           handleChange('business_hours', newHours)
                         }}
                         className="px-3 py-2 rounded-xl border-2 border-cream focus:border-gold focus:outline-none"
@@ -913,7 +913,7 @@ export default function EditBusinessPage() {
                         value={hours.close}
                         onChange={(e) => {
                           const newHours = { ...formData.business_hours }
-                          newHours[day] = { ...hours, close: e.target.value }
+                          newHours[day as keyof typeof formData.business_hours] = { ...hours, close: e.target.value }
                           handleChange('business_hours', newHours)
                         }}
                         className="px-3 py-2 rounded-xl border-2 border-cream focus:border-gold focus:outline-none"
