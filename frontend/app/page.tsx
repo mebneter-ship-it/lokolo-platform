@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import TopNavigation from '@/components/TopNavigation'
 import MapView from '@/components/MapView'
@@ -25,6 +25,10 @@ export default function Home() {
   const [filters, setFilters] = useState<FilterState>({})
   const [favorites, setFavorites] = useState<Set<string>>(new Set())
   const [radius, setRadius] = useState(10) // Default 10km
+  
+  // Refs for scrolling to business cards
+  const businessRefs = useRef<Map<string, HTMLDivElement>>(new Map())
+  const listContainerRef = useRef<HTMLDivElement>(null)
 
   // Load favorites from backend when user logs in
   useEffect(() => {
@@ -244,9 +248,19 @@ export default function Home() {
     )
   }, [favorites, user])
 
-  const handlePinClick = (businessId: string) => {
+  const handlePinClick = useCallback((businessId: string) => {
     setSelectedBusiness(businessId)
-  }
+    
+    // Scroll to the business card in the list
+    const cardElement = businessRefs.current.get(businessId)
+    if (cardElement && listContainerRef.current) {
+      // Scroll the card into view with smooth animation
+      cardElement.scrollIntoView({ 
+        behavior: 'smooth', 
+        block: 'center'
+      })
+    }
+  }, [])
 
   const handleCardClick = (businessId: string) => {
     router.push(`/business/${businessId}`)
@@ -255,6 +269,15 @@ export default function Home() {
   const handleViewFavorites = () => {
     router.push('/favorites')
   }
+
+  // Function to register business card refs
+  const setBusinessRef = useCallback((id: string, element: HTMLDivElement | null) => {
+    if (element) {
+      businessRefs.current.set(id, element)
+    } else {
+      businessRefs.current.delete(id)
+    }
+  }, [])
 
   return (
     <main className="h-screen w-full overflow-hidden bg-cream relative">
@@ -307,7 +330,7 @@ export default function Home() {
           <div className="w-12 h-1.5 rounded-full" style={{ backgroundColor: '#C4B5A6' }} />
         </div>
 
-        <div className="px-4 pb-4 h-full overflow-y-auto">
+        <div ref={listContainerRef} className="px-4 pb-4 h-full overflow-y-auto">
           <div className="mb-4">
             <h2 className="text-lg font-bold text-text-primary">
               Nearby businesses ({businesses.length})
@@ -338,13 +361,17 @@ export default function Home() {
           {!loading && businesses.length > 0 && (
             <div className="space-y-0">
               {businesses.map((business: any) => (
-                <BusinessCard
-                  key={business.id}
-                  business={business}
-                  onClick={() => handleCardClick(business.id)}
-                  onFavoriteToggle={handleFavoriteToggle}
-                  isSelected={selectedBusiness === business.id}
-                />
+                <div 
+                  key={business.id} 
+                  ref={(el) => setBusinessRef(business.id, el)}
+                >
+                  <BusinessCard
+                    business={business}
+                    onClick={() => handleCardClick(business.id)}
+                    onFavoriteToggle={handleFavoriteToggle}
+                    isSelected={selectedBusiness === business.id}
+                  />
+                </div>
               ))}
             </div>
           )}
