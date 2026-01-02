@@ -1,38 +1,36 @@
-# -------- Builder stage (has dev deps + types) --------
+# --- builder ---
 FROM node:18-alpine AS builder
 WORKDIR /app
 
-# Install all deps (including devDependencies)
 COPY backend/package*.json ./
 RUN npm ci
 
-# Copy source + tsconfig and compile
 COPY backend/tsconfig.json ./
 COPY backend/src ./src
 
-# Keep your original approach: install TS globally then compile
 RUN npm install -g typescript && tsc
 
-# -------- Runtime stage (production deps only) --------
+# Detect compiled entry and store it
+RUN node -e "const fs=require('fs'); \
+  const c=['dist/index.js','build/index.js','lib/index.js','out/index.js','src/index.js']; \
+  const f=c.find(p=>fs.existsSync(p)); \
+  if(!f){console.error('No compiled JS entry found. Check tsconfig outDir/noEmit.'); process.exit(1);} \
+  fs.writeFileSync('/app/.entry', f); console.log('Using entry:', f);"
+
+# --- runtime ---
 FROM node:18-alpine
 WORKDIR /app
 
-# Install only production dependencies
 COPY backend/package*.json ./
 RUN npm ci --omit=dev
 
-# Copy compiled output (wherever tsc put it) + any needed runtime files
-# We copy the whole /app from builder, then remove the builder's node_modules
+# Copy compiled output + entry marker from builder
 COPY --from=builder /app/ /app/
+
+# Ensure runtime deps are prod-only
 RUN rm -rf node_modules && npm ci --omit=dev
 
-# Optional, but harmless
 ENV NODE_ENV=production
+ENV PORT=8080
 
-# Start: prefer common build outputs; fall back to npm start if needed.
-CMD ["sh", "-c", "\
-  if [ -f dist/index.js ]; then node dist/index.js; \
-  elif [ -f build/index.js ]; then node build/index.js; \
-  elif [ -f src/index.js ]; then node src/index.js; \
-  else npm start; fi \
-"]
+CMD ["sh", "-c", "node $(cat /app/.entry)"]
